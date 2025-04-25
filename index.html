@@ -1,1185 +1,1242 @@
 <!DOCTYPE html>
 <html>
-   <head>
-      <meta charset="UTF-8">
-      <title>Gemini + Sefaria Chat</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-         /* --- CSS remains the same --- */
-         :root {
-         --background-color: #131314;
-         --text-color: #e3e3e3;
-         --input-background: #1e1f20;
-         --input-border: #3c4043;
-         --button-background: #8ab4f8;
-         --button-text: #202124;
-         --ai-message-background: #282a2d;
-         --user-message-background: #86a7fc;
-         --hebrew-background: #303338;
-         --border-color: #3c4043;
-         --link-color: #8ab4f8;
-         --status-color: #9aa0a6;
-         --scroll-thumb-color: #5f6368;
-         --scroll-track-color: var(--input-background);
-         --sidebar-background: #1e1f20;
-         --sidebar-width: 350px;
-         --slider-track-color: #3c4043;
-         --slider-thumb-color: #8ab4f8;
-         --checkbox-border-color: #5f6368;
-         --checkbox-checked-bg: #8ab4f8;
-         --checkbox-checkmark-color: #202124;
-         --code-background: #1e1f20;
-         --regenerate-button-bg: var(--input-background);
-         --regenerate-button-hover-bg: var(--hebrew-background);
-         --regenerate-button-border: var(--border-color)
-         }
-         html,
-         body {
-         height: 100%;
-         margin: 0;
-         padding: 0;
-         background-color: var(--background-color);
-         color: var(--text-color);
-         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-         font-size: 14px;
-         display: flex;
-         justify-content: center;
-         overflow: hidden
-         }
-         #main-content {
-         width: 800px;
-         display: flex;
-         flex-direction: column;
-         height: 100vh;
-         overflow: hidden
-         }
-         #chat-container {
-         flex-grow: 1;
-         display: flex;
-         flex-direction: column;
-         overflow: hidden;
-         padding: 10px 0
-         }
-         #message-wrapper {
-         width: 100%;
-         margin: 0 auto;
-         flex-grow: 1;
-         display: flex;
-         flex-direction: column;
-         overflow: hidden;
-         padding: 0 20px;
-         box-sizing: border-box
-         }
-         #messages {
-         flex-grow: 1;
-         overflow-y: auto;
-         padding: 10px 0;
-         display: flex;
-         flex-direction: column;
-         gap: 5px;
-         scrollbar-width: thin;
-         scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color)
-         }
-         #messages::-webkit-scrollbar {
-         width: 8px
-         }
-         #messages::-webkit-scrollbar-track {
-         background: var(--scroll-track-color)
-         }
-         #messages::-webkit-scrollbar-thumb {
-         background-color: var(--scroll-thumb-color);
-         border-radius: 4px;
-         border: 2px solid var(--scroll-track-color)
-         }
-         .message-container {
-         display: flex;
-         flex-direction: column;
-         max-width: 85%;
-         margin-bottom: 10px
-         }
-         .message {
-         padding: 12px 16px;
-         border-radius: 18px;
-         line-height: 1.5;
-         word-wrap: break-word;
-         white-space: normal;
-         margin-bottom: 5px;
-         box-sizing: border-box
-         }
-         .user-message-container {
-         align-self: flex-end;
-         align-items: flex-end
-         }
-         .ai-message-container {
-         align-self: flex-start;
-         align-items: flex-start
-         }
-         .user-message {
-         color: #000;
-         background-color: var(--user-message-background);
-         border-bottom-right-radius: 4px;
-         white-space: pre-wrap
-         }
-         .ai-message {
-         background-color: var(--ai-message-background);
-         border-bottom-left-radius: 4px;
-         overflow-wrap: break-word; /* Add this to break long words/URLs in normal text */
-         /* word-break: break-word; /* Consider adding this too if overflow-wrap isn't enough */
-         }
-         .ai-message p {
-         margin-top: 0;
-         margin-bottom: .8em
-         }
-         .ai-message p:last-child {
-         margin-bottom: 0
-         }
-         .ai-message ul,
-         .ai-message ol {
-         margin-top: .5em;
-         margin-bottom: .8em;
-         padding-left: 25px
-         }
-         .ai-message li {
-         margin-bottom: .3em
-         }
-         .ai-message strong {
-         font-weight: 600
-         }
-         .ai-message em {
-         font-style: italic
-         }
-         .ai-message a {
-         color: var(--link-color);
-         text-decoration: none
-         }
-         .ai-message a:hover {
-         text-decoration: underline
-         }
-         .ai-message pre {
-         background-color: var(--code-background);
-         border: 1px solid var(--input-border);
-         border-radius: 6px;
-         padding: 10px;
-         /* overflow-x: auto; */ /* Keep as fallback, but prioritize wrapping */
-         margin-top: .5em;
-         margin-bottom: .8em;
-         scrollbar-width: thin;
-         scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color);
-         /* --- Add/Modify these lines for wrapping --- */
-         white-space: pre-wrap;   /* Preserves whitespace AND allows wrapping */
-         word-break: break-word; /* Helps break long lines without spaces */
-         overflow-x: auto;       /* Fallback scrollbar if needed */
-         /* --- End wrapping modifications --- */
-         }
-         .ai-message pre::-webkit-scrollbar {
-         height: 6px
-         }
-         .ai-message pre::-webkit-scrollbar-track {
-         background: var(--scroll-track-color)
-         }
-         .ai-message pre::-webkit-scrollbar-thumb {
-         background-color: var(--scroll-thumb-color);
-         border-radius: 3px
-         }
-         .ai-message code {
-         /* Note: Usually code uses a monospace font, but sticking to your CSS */
-         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-         background-color: var(--code-background);
-         padding: .1em .3em;
-         border-radius: 3px;
-         /* --- Add these lines for wrapping inline code --- */
-         overflow-wrap: break-word;
-         word-break: break-word; /* More conservative than break-all */
-         /* --- End wrapping modifications --- */
-         }
-         .ai-message pre code {
-         /* These styles reset specific inline code styles when inside a pre block */
-         background-color: transparent;
-         padding: 0;
-         border-radius: 0;
-         font-size: inherit;
-         /* Ensure wrapping rules from inline code are reset if necessary */
-         /* (though the parent pre's white-space: pre-wrap should handle it) */
-         overflow-wrap: normal; /* Reset to default */
-         word-break: normal; /* Reset to default */
-         /* Let the parent 
-         <pre>
-         tag control white-space */
-         }
-         .ai-message blockquote {
-         margin-left: 15px;
-         padding-left: 15px;
-         border-left: 3px solid var(--input-border);
-         color: var(--status-color);
-         font-style: italic;
-         margin-top: .5em;
-         margin-bottom: .8em
-         }
-         .ai-message hr {
-         border: none;
-         border-top: 1px solid var(--input-border);
-         margin: 1em 0
-         }
-         .ai-message .hebrew-text {
-         direction: rtl;
-         display: block;
-         font-size: 1.1em;
-         background-color: var(--hebrew-background);
-         color: var(--text-color);
-         padding: 8px 12px;
-         border-radius: 8px;
-         margin-top: 8px;
-         margin-bottom: 8px;
-         border: 1px solid var(--border-color);
-         white-space: pre-wrap
-         }
-         .tool-call-message {
-         font-style: italic;
-         color: var(--status-color);
-         align-self: center;
-         font-size: .9em;
-         background-color: transparent;
-         padding: 4px 0;
-         text-align: center;
-         max-width: 100%;
-         width: 100%;
-         margin-bottom: 5px
-         }
-         .regenerate-button {
-         background-color: var(--regenerate-button-bg);
-         color: var(--status-color);
-         border: 1px solid var(--regenerate-button-border);
-         border-radius: 4px;
-         padding: 4px 8px;
-         font-size: .8em;
-         cursor: pointer;
-         margin-top: 5px;
-         margin-left: 0;
-         align-self: flex-start;
-         transition: background-color .2s, color .2s;
-         opacity: .7;
-         width: auto;
-         display: inline-flex;
-         align-items: center;
-         gap: 4px
-         }
-         .regenerate-button:hover:not(:disabled) {
-         background-color: var(--regenerate-button-hover-bg);
-         color: var(--text-color);
-         opacity: 1
-         }
-         .regenerate-button:disabled {
-         cursor: not-allowed;
-         opacity: .5
-         }
-         .regenerate-button svg {
-         width: 1em;
-         height: 1em;
-         fill: currentColor
-         }
-         #status {
-         font-size: .8em;
-         color: var(--status-color);
-         text-align: center;
-         padding: 5px 0 10px;
-         flex-shrink: 0
-         }
-         #input-area {
-         padding: 15px 20px;
-         background-color: var(--background-color);
-         border-top: 1px solid var(--border-color);
-         display: flex;
-         align-items: flex-end;
-         gap: 10px;
-         flex-shrink: 0;
-         max-width: 840px;
-         margin: 0 auto;
-         width: 100%;
-         box-sizing: border-box
-         }
-         #user-prompt {
-         flex-grow: 1;
-         min-height: 24px;
-         max-height: 150px;
-         resize: none;
-         background-color: var(--input-background);
-         color: var(--text-color);
-         border: 1px solid var(--input-border);
-         border-radius: 8px;
-         padding: 10px 15px;
-         font-size: 14px;
-         line-height: 1.5;
-         font-family: inherit;
-         box-sizing: border-box;
-         overflow-y: auto;
-         scrollbar-width: thin;
-         scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color)
-         }
-         #user-prompt::-webkit-scrollbar {
-         width: 6px
-         }
-         #user-prompt::-webkit-scrollbar-track {
-         background: var(--scroll-track-color)
-         }
-         #user-prompt::-webkit-scrollbar-thumb {
-         background-color: var(--scroll-thumb-color);
-         border-radius: 3px
-         }
-         #send-prompt {
-         background-color: var(--button-background);
-         color: var(--button-text);
-         border: none;
-         border-radius: 50%;
-         width: 40px;
-         height: 40px;
-         padding: 0;
-         cursor: pointer;
-         font-size: 20px;
-         font-weight: 700;
-         transition: background-color .2s ease;
-         flex-shrink: 0;
-         display: flex;
-         align-items: center;
-         justify-content: center;
-         line-height: 1
-         }
-         #send-prompt:hover:not(:disabled) {
-         background-color: #a8c7fa
-         }
-         #send-prompt:disabled {
-         background-color: var(--input-border);
-         cursor: not-allowed;
-         color: var(--status-color)
-         }
-         #send-prompt::before {
-         content: "➤";
-         transform: translateX(1px)
-         }
-         h1,
-         label[for=user-prompt] {
-         display: none
-         }
-         #settings-sidebar {
-         width: var(--sidebar-width);
-         height: 100%;
-         background-color: var(--sidebar-background);
-         border-left: 1px solid var(--border-color);
-         padding: 20px;
-         box-sizing: border-box;
-         overflow-y: auto;
-         flex-shrink: 0;
-         transition: transform .3s ease-in-out, visibility .3s ease-in-out;
-         transform: translateX(100%);
-         visibility: hidden;
-         position: fixed;
-         right: 0;
-         top: 0;
-         z-index: 1000;
-         scrollbar-width: thin;
-         scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color)
-         }
-         #settings-sidebar::-webkit-scrollbar {
-         width: 8px
-         }
-         #settings-sidebar::-webkit-scrollbar-track {
-         background: var(--scroll-track-color)
-         }
-         #settings-sidebar::-webkit-scrollbar-thumb {
-         background-color: var(--scroll-thumb-color);
-         border-radius: 4px;
-         border: 2px solid var(--scroll-track-color)
-         }
-         #settings-sidebar.open {
-         transform: translateX(0);
-         visibility: visible
-         }
-         #settings-sidebar h2 {
-         margin-top: 0;
-         margin-bottom: 25px;
-         font-size: 1.2em;
-         font-weight: 500;
-         color: var(--text-color);
-         border-bottom: 1px solid var(--border-color);
-         padding-bottom: 10px
-         }
-         .settings-group {
-         margin-bottom: 25px
-         }
-         .settings-group label {
-         display: block;
-         font-size: .9em;
-         color: var(--status-color);
-         margin-bottom: 8px;
-         font-weight: 500
-         }
-         .slider-container {
-         display: flex;
-         align-items: center;
-         gap: 10px;
-         margin-bottom: 5px
-         }
-         .slider-container input[type=range] {
-         flex-grow: 1;
-         -webkit-appearance: none;
-         appearance: none;
-         width: 100%;
-         height: 4px;
-         background: var(--slider-track-color);
-         border-radius: 2px;
-         outline: none;
-         cursor: pointer
-         }
-         .slider-container input[type=range]::-webkit-slider-thumb {
-         -webkit-appearance: none;
-         appearance: none;
-         width: 16px;
-         height: 16px;
-         background: var(--slider-thumb-color);
-         border-radius: 50%;
-         cursor: pointer;
-         border: none
-         }
-         .slider-container input[type=range]::-moz-range-track {
-         width: 100%;
-         height: 4px;
-         background: var(--slider-track-color);
-         border-radius: 2px;
-         cursor: pointer
-         }
-         .slider-container input[type=range]::-moz-range-thumb {
-         width: 16px;
-         height: 16px;
-         background: var(--slider-thumb-color);
-         border-radius: 50%;
-         cursor: pointer;
-         border: none
-         }
-         .slider-value {
-         font-size: .9em;
-         color: var(--text-color);
-         width: 70px;
-         text-align: right
-         }
-         .checkbox-container {
-         display: flex;
-         align-items: center;
-         margin-bottom: 15px;
-         cursor: pointer
-         }
-         .checkbox-container input[type=checkbox] {
-         opacity: 0;
-         position: absolute
-         }
-         .checkbox-container .custom-checkbox {
-         width: 18px;
-         height: 18px;
-         border: 2px solid var(--checkbox-border-color);
-         border-radius: 4px;
-         margin-right: 10px;
-         display: inline-block;
-         position: relative;
-         background-color: var(--input-background);
-         transition: background-color .2s, border-color .2s;
-         flex-shrink: 0
-         }
-         .checkbox-container input[type=checkbox]:checked+.custom-checkbox {
-         background-color: var(--checkbox-checked-bg);
-         border-color: var(--checkbox-checked-bg)
-         }
-         .checkbox-container .custom-checkbox::after {
-         content: '';
-         position: absolute;
-         display: none;
-         left: 5px;
-         top: 1px;
-         width: 4px;
-         height: 9px;
-         border: solid var(--checkbox-checkmark-color);
-         border-width: 0 2px 2px 0;
-         transform: rotate(45deg)
-         }
-         .checkbox-container input[type=checkbox]:checked+.custom-checkbox::after {
-         display: block
-         }
-         .checkbox-container label {
-         font-size: 1em;
-         color: var(--text-color);
-         margin-bottom: 0;
-         cursor: pointer;
-         font-weight: 400
-         }
-         #settings-toggle {
-         position: fixed;
-         top: 15px;
-         right: 15px;
-         z-index: 1001;
-         background-color: var(--input-background);
-         color: var(--text-color);
-         border: 1px solid var(--border-color);
-         border-radius: 50%;
-         width: 40px;
-         height: 40px;
-         font-size: 20px;
-         cursor: pointer;
-         display: flex;
-         align-items: center;
-         justify-content: center;
-         transition: background-color .2s, transform .3s ease-in-out
-         }
-         #settings-toggle:hover {
-         background-color: var(--hebrew-background)
-         }
-         #settings-sidebar.open~#settings-toggle {
-         transform: translateX(calc(-1 * var(--sidebar-width) - 15px))
-         }
-      </style>
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-   <body>
-      <!-- Main Chat Area -->
-      <div id="main-content">
-         <div id="chat-container">
+<head>
+    <meta charset="UTF-8">
+    <title>Gemini + Sefaria Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* --- CSS remains the same --- */
+        :root {
+        	--background-color: #131314;
+        	--text-color: #e3e3e3;
+        	--input-background: #1e1f20;
+        	--input-border: #3c4043;
+        	--button-background: #8ab4f8;
+        	--button-text: #202124;
+        	--ai-message-background: #282a2d;
+        	--user-message-background: #86a7fc;
+        	--hebrew-background: #303338;
+        	--border-color: #3c4043;
+        	--link-color: #8ab4f8;
+        	--status-color: #9aa0a6;
+        	--scroll-thumb-color: #5f6368;
+        	--scroll-track-color: var(--input-background);
+        	--sidebar-background: #1e1f20;
+        	--sidebar-width: 350px;
+        	--slider-track-color: #3c4043;
+        	--slider-thumb-color: #8ab4f8;
+        	--checkbox-border-color: #5f6368;
+        	--checkbox-checked-bg: #8ab4f8;
+        	--checkbox-checkmark-color: #202124;
+        	--code-background: #1e1f20;
+        	--regenerate-button-bg: var(--input-background);
+        	--regenerate-button-hover-bg: var(--hebrew-background);
+        	--regenerate-button-border: var(--border-color)
+        }
+html,
+    body {
+    	height: 100%;
+    	margin: 0;
+    	padding: 0;
+    	background-color: var(--background-color);
+    	color: var(--text-color);
+    	font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    	font-size: 14px;
+    	display: flex;
+    	justify-content: center;
+    	overflow: hidden
+    }
+    
+    #main-content {
+    	width: 800px;
+    	display: flex;
+    	flex-direction: column;
+    	height: 100vh;
+    	overflow: hidden
+    }
+    
+    #chat-container {
+    	flex-grow: 1;
+    	display: flex;
+    	flex-direction: column;
+    	overflow: hidden;
+    	padding: 10px 0
+    }
+    
+    #message-wrapper {
+    	width: 100%;
+    	margin: 0 auto;
+    	flex-grow: 1;
+    	display: flex;
+    	flex-direction: column;
+    	overflow: hidden;
+    	padding: 0 20px;
+    	box-sizing: border-box
+    }
+    
+    #messages {
+    	flex-grow: 1;
+    	overflow-y: auto;
+    	padding: 10px 0;
+    	display: flex;
+    	flex-direction: column;
+    	gap: 5px;
+    	scrollbar-width: thin;
+    	scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color)
+    }
+    
+    #messages::-webkit-scrollbar {
+    	width: 8px
+    }
+    
+    #messages::-webkit-scrollbar-track {
+    	background: var(--scroll-track-color)
+    }
+    
+    #messages::-webkit-scrollbar-thumb {
+    	background-color: var(--scroll-thumb-color);
+    	border-radius: 4px;
+    	border: 2px solid var(--scroll-track-color)
+    }
+    
+    .message-container {
+    	display: flex;
+    	flex-direction: column;
+    	max-width: 85%;
+    	margin-bottom: 10px
+    }
+    
+    .message {
+    	padding: 12px 16px;
+    	border-radius: 18px;
+    	line-height: 1.5;
+    	word-wrap: break-word;
+    	white-space: normal;
+    	margin-bottom: 5px;
+    	box-sizing: border-box
+    }
+    
+    .user-message-container {
+    	align-self: flex-end;
+    	align-items: flex-end
+    }
+    
+    .ai-message-container {
+    	align-self: flex-start;
+    	align-items: flex-start
+    }
+    
+    .user-message {
+    	color: #000;
+    	background-color: var(--user-message-background);
+    	border-bottom-right-radius: 4px;
+    	white-space: pre-wrap
+    }
+    
+    .ai-message {
+    	background-color: var(--ai-message-background);
+    	border-bottom-left-radius: 4px;
+    	overflow-wrap: break-word; /* Add this to break long words/URLs in normal text */
+    	/* word-break: break-word; /* Consider adding this too if overflow-wrap isn't enough */
+    }
+    
+    .ai-message p {
+    	margin-top: 0;
+    	margin-bottom: .8em
+    }
+    
+    .ai-message p:last-child {
+    	margin-bottom: 0
+    }
+    
+    .ai-message ul,
+    .ai-message ol {
+    	margin-top: .5em;
+    	margin-bottom: .8em;
+    	padding-left: 25px
+    }
+    
+    .ai-message li {
+    	margin-bottom: .3em
+    }
+    
+    .ai-message strong {
+    	font-weight: 600
+    }
+    
+    .ai-message em {
+    	font-style: italic
+    }
+    
+    .ai-message a {
+    	color: var(--link-color);
+    	text-decoration: none
+    }
+    
+    .ai-message a:hover {
+    	text-decoration: underline
+    }
+    
+    .ai-message pre {
+    	background-color: var(--code-background);
+    	border: 1px solid var(--input-border);
+    	border-radius: 6px;
+    	padding: 10px;
+    	/* overflow-x: auto; */ /* Keep as fallback, but prioritize wrapping */
+    	margin-top: .5em;
+    	margin-bottom: .8em;
+    	scrollbar-width: thin;
+    	scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color);
+    	/* --- Add/Modify these lines for wrapping --- */
+    	white-space: pre-wrap;   /* Preserves whitespace AND allows wrapping */
+    	word-break: break-word; /* Helps break long lines without spaces */
+    	overflow-x: auto;       /* Fallback scrollbar if needed */
+    	/* --- End wrapping modifications --- */
+    }
+    
+    .ai-message pre::-webkit-scrollbar {
+    	height: 6px
+    }
+    
+    .ai-message pre::-webkit-scrollbar-track {
+    	background: var(--scroll-track-color)
+    }
+    
+    .ai-message pre::-webkit-scrollbar-thumb {
+    	background-color: var(--scroll-thumb-color);
+    	border-radius: 3px
+    }
+    
+    .ai-message code {
+      /* Note: Usually code uses a monospace font, but sticking to your CSS */
+    	font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    	background-color: var(--code-background);
+    	padding: .1em .3em;
+    	border-radius: 3px;
+    	/* --- Add these lines for wrapping inline code --- */
+    	overflow-wrap: break-word;
+    	word-break: break-word; /* More conservative than break-all */
+    	/* --- End wrapping modifications --- */
+    }
+    
+    .ai-message pre code {
+    	/* These styles reset specific inline code styles when inside a pre block */
+    	background-color: transparent;
+    	padding: 0;
+    	border-radius: 0;
+    	font-size: inherit;
+    	/* Ensure wrapping rules from inline code are reset if necessary */
+    	/* (though the parent pre's white-space: pre-wrap should handle it) */
+    	overflow-wrap: normal; /* Reset to default */
+    	word-break: normal; /* Reset to default */
+    	/* Let the parent <pre> tag control white-space */
+    }
+
+    
+    .ai-message blockquote {
+    	margin-left: 15px;
+    	padding-left: 15px;
+    	border-left: 3px solid var(--input-border);
+    	color: var(--status-color);
+    	font-style: italic;
+    	margin-top: .5em;
+    	margin-bottom: .8em
+    }
+    
+    .ai-message hr {
+    	border: none;
+    	border-top: 1px solid var(--input-border);
+    	margin: 1em 0
+    }
+    
+    .ai-message .hebrew-text {
+    	direction: rtl;
+    	display: block;
+    	font-size: 1.1em;
+    	background-color: var(--hebrew-background);
+    	color: var(--text-color);
+    	padding: 8px 12px;
+    	border-radius: 8px;
+    	margin-top: 8px;
+    	margin-bottom: 8px;
+    	border: 1px solid var(--border-color);
+    	white-space: pre-wrap
+    }
+    
+    .tool-call-message {
+    	font-style: italic;
+    	color: var(--status-color);
+    	align-self: center;
+    	font-size: .9em;
+    	background-color: transparent;
+    	padding: 4px 0;
+    	text-align: center;
+    	max-width: 100%;
+    	width: 100%;
+    	margin-bottom: 5px
+    }
+    
+    .regenerate-button {
+    	background-color: var(--regenerate-button-bg);
+    	color: var(--status-color);
+    	border: 1px solid var(--regenerate-button-border);
+    	border-radius: 4px;
+    	padding: 4px 8px;
+    	font-size: .8em;
+    	cursor: pointer;
+    	margin-top: 5px;
+    	margin-left: 0;
+    	align-self: flex-start;
+    	transition: background-color .2s, color .2s;
+    	opacity: .7;
+    	width: auto;
+    	display: inline-flex;
+    	align-items: center;
+    	gap: 4px
+    }
+    
+    .regenerate-button:hover:not(:disabled) {
+    	background-color: var(--regenerate-button-hover-bg);
+    	color: var(--text-color);
+    	opacity: 1
+    }
+    
+    .regenerate-button:disabled {
+    	cursor: not-allowed;
+    	opacity: .5
+    }
+    
+    .regenerate-button svg {
+    	width: 1em;
+    	height: 1em;
+    	fill: currentColor
+    }
+    
+    #status {
+    	font-size: .8em;
+    	color: var(--status-color);
+    	text-align: center;
+    	padding: 5px 0 10px;
+    	flex-shrink: 0
+    }
+    
+    #input-area {
+    	padding: 15px 20px;
+    	background-color: var(--background-color);
+    	border-top: 1px solid var(--border-color);
+    	display: flex;
+    	align-items: flex-end;
+    	gap: 10px;
+    	flex-shrink: 0;
+    	max-width: 840px;
+    	margin: 0 auto;
+    	width: 100%;
+    	box-sizing: border-box
+    }
+    
+    #user-prompt {
+    	flex-grow: 1;
+    	min-height: 24px;
+    	max-height: 150px;
+    	resize: none;
+    	background-color: var(--input-background);
+    	color: var(--text-color);
+    	border: 1px solid var(--input-border);
+    	border-radius: 8px;
+    	padding: 10px 15px;
+    	font-size: 14px;
+    	line-height: 1.5;
+    	font-family: inherit;
+    	box-sizing: border-box;
+    	overflow-y: auto;
+    	scrollbar-width: thin;
+    	scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color)
+    }
+    
+    #user-prompt::-webkit-scrollbar {
+    	width: 6px
+    }
+    
+    #user-prompt::-webkit-scrollbar-track {
+    	background: var(--scroll-track-color)
+    }
+    
+    #user-prompt::-webkit-scrollbar-thumb {
+    	background-color: var(--scroll-thumb-color);
+    	border-radius: 3px
+    }
+    
+    #send-prompt {
+    	background-color: var(--button-background);
+    	color: var(--button-text);
+    	border: none;
+    	border-radius: 50%;
+    	width: 40px;
+    	height: 40px;
+    	padding: 0;
+    	cursor: pointer;
+    	font-size: 20px;
+    	font-weight: 700;
+    	transition: background-color .2s ease;
+    	flex-shrink: 0;
+    	display: flex;
+    	align-items: center;
+    	justify-content: center;
+    	line-height: 1
+    }
+    
+    #send-prompt:hover:not(:disabled) {
+    	background-color: #a8c7fa
+    }
+    
+    #send-prompt:disabled {
+    	background-color: var(--input-border);
+    	cursor: not-allowed;
+    	color: var(--status-color)
+    }
+    
+    #send-prompt::before {
+    	content: "➤";
+    	transform: translateX(1px)
+    }
+    
+    h1,
+    label[for=user-prompt] {
+    	display: none
+    }
+    
+    #settings-sidebar {
+    	width: var(--sidebar-width);
+    	height: 100%;
+    	background-color: var(--sidebar-background);
+    	border-left: 1px solid var(--border-color);
+    	padding: 20px;
+    	box-sizing: border-box;
+    	overflow-y: auto;
+    	flex-shrink: 0;
+    	transition: transform .3s ease-in-out, visibility .3s ease-in-out;
+    	transform: translateX(100%);
+    	visibility: hidden;
+    	position: fixed;
+    	right: 0;
+    	top: 0;
+    	z-index: 1000;
+    	scrollbar-width: thin;
+    	scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color)
+    }
+    
+    #settings-sidebar::-webkit-scrollbar {
+    	width: 8px
+    }
+    
+    #settings-sidebar::-webkit-scrollbar-track {
+    	background: var(--scroll-track-color)
+    }
+    
+    #settings-sidebar::-webkit-scrollbar-thumb {
+    	background-color: var(--scroll-thumb-color);
+    	border-radius: 4px;
+    	border: 2px solid var(--scroll-track-color)
+    }
+    
+    #settings-sidebar.open {
+    	transform: translateX(0);
+    	visibility: visible
+    }
+    
+    #settings-sidebar h2 {
+    	margin-top: 0;
+    	margin-bottom: 25px;
+    	font-size: 1.2em;
+    	font-weight: 500;
+    	color: var(--text-color);
+    	border-bottom: 1px solid var(--border-color);
+    	padding-bottom: 10px
+    }
+    
+    .settings-group {
+    	margin-bottom: 25px
+    }
+    
+    .settings-group label {
+    	display: block;
+    	font-size: .9em;
+    	color: var(--status-color);
+    	margin-bottom: 8px;
+    	font-weight: 500
+    }
+    
+    .slider-container {
+    	display: flex;
+    	align-items: center;
+    	gap: 10px;
+    	margin-bottom: 5px
+    }
+    
+    .slider-container input[type=range] {
+    	flex-grow: 1;
+    	-webkit-appearance: none;
+    	appearance: none;
+    	width: 100%;
+    	height: 4px;
+    	background: var(--slider-track-color);
+    	border-radius: 2px;
+    	outline: none;
+    	cursor: pointer
+    }
+    
+    .slider-container input[type=range]::-webkit-slider-thumb {
+    	-webkit-appearance: none;
+    	appearance: none;
+    	width: 16px;
+    	height: 16px;
+    	background: var(--slider-thumb-color);
+    	border-radius: 50%;
+    	cursor: pointer;
+    	border: none
+    }
+    
+    .slider-container input[type=range]::-moz-range-track {
+    	width: 100%;
+    	height: 4px;
+    	background: var(--slider-track-color);
+    	border-radius: 2px;
+    	cursor: pointer
+    }
+    
+    .slider-container input[type=range]::-moz-range-thumb {
+    	width: 16px;
+    	height: 16px;
+    	background: var(--slider-thumb-color);
+    	border-radius: 50%;
+    	cursor: pointer;
+    	border: none
+    }
+    
+    .slider-value {
+    	font-size: .9em;
+    	color: var(--text-color);
+    	width: 70px;
+    	text-align: right
+    }
+    
+    .checkbox-container {
+    	display: flex;
+    	align-items: center;
+    	margin-bottom: 15px;
+    	cursor: pointer
+    }
+    
+    .checkbox-container input[type=checkbox] {
+    	opacity: 0;
+    	position: absolute
+    }
+    
+    .checkbox-container .custom-checkbox {
+    	width: 18px;
+    	height: 18px;
+    	border: 2px solid var(--checkbox-border-color);
+    	border-radius: 4px;
+    	margin-right: 10px;
+    	display: inline-block;
+    	position: relative;
+    	background-color: var(--input-background);
+    	transition: background-color .2s, border-color .2s;
+    	flex-shrink: 0
+    }
+    
+    .checkbox-container input[type=checkbox]:checked+.custom-checkbox {
+    	background-color: var(--checkbox-checked-bg);
+    	border-color: var(--checkbox-checked-bg)
+    }
+    
+    .checkbox-container .custom-checkbox::after {
+    	content: '';
+    	position: absolute;
+    	display: none;
+    	left: 5px;
+    	top: 1px;
+    	width: 4px;
+    	height: 9px;
+    	border: solid var(--checkbox-checkmark-color);
+    	border-width: 0 2px 2px 0;
+    	transform: rotate(45deg)
+    }
+    
+    .checkbox-container input[type=checkbox]:checked+.custom-checkbox::after {
+    	display: block
+    }
+    
+    .checkbox-container label {
+    	font-size: 1em;
+    	color: var(--text-color);
+    	margin-bottom: 0;
+    	cursor: pointer;
+    	font-weight: 400
+    }
+    
+    #settings-toggle {
+    	position: fixed;
+    	top: 15px;
+    	right: 15px;
+    	z-index: 1001;
+    	background-color: var(--input-background);
+    	color: var(--text-color);
+    	border: 1px solid var(--border-color);
+    	border-radius: 50%;
+    	width: 40px;
+    	height: 40px;
+    	font-size: 20px;
+    	cursor: pointer;
+    	display: flex;
+    	align-items: center;
+    	justify-content: center;
+    	transition: background-color .2s, transform .3s ease-in-out
+    }
+    
+    #settings-toggle:hover {
+    	background-color: var(--hebrew-background)
+    }
+    
+    #settings-sidebar.open~#settings-toggle {
+    	transform: translateX(calc(-1 * var(--sidebar-width) - 15px))
+    }
+</style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<body>
+
+    <!-- Main Chat Area -->
+    <div id="main-content">
+        <div id="chat-container">
             <div id="message-wrapper">
-               <div id="messages">
-                  <div class="message-container ai-message-container initial-ai-message">
-                     <div class="message ai-message">א גוטן! What can I help you learn today? Ask me a שאלת הלכה or for a דבר תורה!</div>
-                  </div>
-               </div>
-               <div id="status">Status: Ready</div>
+                <div id="messages">
+                    <div class="message-container ai-message-container initial-ai-message">
+                         <div class="message ai-message">א גוטן! What can I help you learn today? Ask me a שאלת הלכה or for a דבר תורה!</div>
+                    </div>
+                </div>
+                <div id="status">Status: Ready</div>
             </div>
-         </div>
-         <div id="input-area">
+        </div>
+        <div id="input-area">
             <textarea id="user-prompt" rows="1" placeholder="Type something..."></textarea>
             <button id="send-prompt" title="Send (Ctrl+Enter)"> </button>
-         </div>
-      </div>
-      <!-- Settings Sidebar (UI Only) -->
-      <aside id="settings-sidebar">
-         <h2>Settings (UI Only)</h2>
-         <div class="settings-group">
-            <label for="frumness-slider">Frumness</label> 
-            <div class="slider-container"> <input type="range" id="frumness-slider" name="frumness" min="0" max="100" step="1" value="100"> <span class="slider-value" id="frumness-value">Gadol Hador</span> </div>
-         </div>
-         <div class="settings-group">
-            <label for="temperature-slider">Temperature</label> 
-            <div class="slider-container"> <input type="range" id="temperature-slider" name="temperature" min="0" max="2" step="0.05" value="0.7"> <span class="slider-value" id="temperature-value">0.7</span> </div>
-         </div>
-         <div class="settings-group">
-            <label for="top-p-slider">Top P</label> 
-            <div class="slider-container"> <input type="range" id="top-p-slider" name="top-p" min="0" max="1" step="0.005" value="0.95"> <span class="slider-value" id="top-p-value">0.95</span> </div>
-         </div>
-         <div class="settings-group">
-            <label for="top-k-slider">Top K</label> 
-            <div class="slider-container"> <input type="range" id="top-k-slider" name="top-k" min="1" max="50" step="1" value="40"> <span class="slider-value" id="top-k-value">40</span> </div>
-         </div>
-         <div class="settings-group">
-            <label>Safety Settings</label> 
-            <div class="checkbox-container"> <input type="checkbox" id="safety-block-dangerous" checked> <span class="custom-checkbox"></span> <label for="safety-block-dangerous">Block Dangerous Content</label> </div>
-            <div class="checkbox-container"> <input type="checkbox" id="safety-block-harassment" checked> <span class="custom-checkbox"></span> <label for="safety-block-harassment">Block Harassment</label> </div>
-            <div class="checkbox-container"> <input type="checkbox" id="safety-block-hate" checked> <span class="custom-checkbox"></span> <label for="safety-block-hate">Block Hate Speech</label> </div>
-            <div class="checkbox-container"> <input type="checkbox" id="safety-block-sexual" checked> <span class="custom-checkbox"></span> <label for="safety-block-sexual">Block Sexually Explicit</label> </div>
-         </div>
-         <div class="settings-group">
-            <label>Other Options</label> 
-            <div class="checkbox-container"> <input type="checkbox" id="option-auto-scroll"> <span class="custom-checkbox"></span> <label for="option-auto-scroll">Disable Auto-Scroll</label> </div>
-         </div>
-      </aside>
-      <!-- Settings Toggle Button -->
-      <button id="settings-toggle" title="Toggle Settings">⚙️</button>
-      <!-- Hidden elements -->
-      <h1>Gemini Sefaria Assistant</h1>
-      <label for="user-prompt">Enter Prompt:</label>
-      <script type="importmap">
-         { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai", "marked": "https://esm.run/marked@12.0.2", "dompurify": "https://esm.run/dompurify@3.0.9" } }
-      </script>
-      <script type="module">
-         import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
-         import { marked } from 'marked';
-         import DOMPurify from 'dompurify';
-         
-         // --- Configuration ---
-         const API_KEY = "AIzaSyB3lmQJddVZA9dvJrlXPJGyD-Mg-c6PH2Y"; // PASTE YOUR KEY HERE
-         const MODEL_NAME = "gemini-2.5-flash-preview-04-17"; // Or your preferred model
-         const SEFARIA_API_ENDPOINT = "https://www.sefaria.org/api/texts/";
-         
-         // --- System Instructions (Keep as is) ---
-         const systemInstructions = `
-         Oy vey iz mir! It seems like we need to make this even *more* clear! Listen up, kinderlach, because I'm only going to say this once. You're not just any AI assistant; you're the Rebbe's special *shaliach* for matters of Torah and Halacha. Your mission, should you choose to accept it (and you *will* accept it!), is to respond with the heart and soul of a frum Yid, someone who's been learning in yeshiva their whole life. This means *speaking* like a ben Torah, not like some shiksa from the goyim.
-         
-         ***IMPORTANT: Adapting to the User's Level!***
-         
-         Nu, pay attention! You'll be given the user's approximate "Frumness Level" based on a scale from 0 to 100, corresponding to these levels:
-         
-         *   **0-9: Am ha'aretz:** The basics, barely knows an aleph from a beis.
-         *   **10-19: Knows Alef-Beis:** Starting the journey, maybe knows some *brachos*.
-         *   **20-29: Got a Siddur:** Familiar with basic prayers, trying to follow along.
-         *   **30-39: Lulav Shaker:** Engaged with holidays, knows some common mitzvos.
-         *   **40-49: Learns Chumash:** Has some background in Tanach, maybe knows Rashi's *peshat*.
-         *   **50-59: Davens Mincha!:** Consistent in basic observance, understands common Halachic concepts.
-         *   **60-69: Black Hat Curious:** Familiar with the Yeshiva world, understands basic Gemara terminology.
-         *   **70-79: Kollel Material:** Comfortable with *lomdus*, learning Gemara with Rishonim.
-         *   **80-89: Almost a Rebbe:** Deep knowledge, can handle complex *sugyos* and *halachic* debates.
-         *   **90-100: Gadol Hador:** A *talmid chacham*! Assumed deep, broad knowledge across Shas and Poskim.
-         
-         **Your response MUST adapt based on this level:**
-         
-         *   **Lower Levels (approx. 0-39: Am ha'aretz -> Lulav Shaker):**
-         *   **Language:** Primarily simple, clear English. Use Hebrew terms sparingly (like *Shabbat*, *Torah*, *Mitzvah*) and *always* explain them simply the first time they appear. Avoid Yeshivish jargon completely.
-         *   **Explanation:** Assume *very little* prior knowledge. Explain concepts step-by-step. Be patient and encouraging. Define basic terms.
-         *   **Sources:** When generating a Dvar Torah, stick to simple stories, basic Chumash *pesukim*, or very straightforward *midrashim* or Rashi. For Halacha, quote the source but explain the practical application very clearly in English.
-         *   **Example Tone:** "Hello! That's a great question about Shabbat. The Torah tells us..."
-         
-         *   **Mid-Levels (approx. 40-69: Learns Chumash -> Black Hat Curious):**
-         *   **Language:** Mix English and common Hebrew/Yiddish terms (*davening*, *shul*, *kashrus*, *peshat*, *derash*, maybe *sugya*). Explain less common terms briefly.
-         *   **Explanation:** Assume familiarity with basic Jewish life and concepts. Can explain things more concisely. Can introduce concepts like different commentators (Rashi vs. Ramban) with brief context.
-         *   **Sources:** Can comfortably quote Rashi, Ramban, other standard *mefarshim* on Chumash. Can reference Mishnah or basic Gemara concepts if explained. For Dvar Torah, can use standard commentaries.
-         *   **Example Tone:** "Regarding your *shaileh* about *muktzah*, the *Shulchan Aruch* states... which basically means..."
-         
-         *   **Higher Levels (approx. 70-100: Kollel Material -> Gadol Hador):**
-         *   **Language:** Use Yeshivish language freely (*lomdus*, *chakira*, *nafka mina*, *sevora*, *inyan*, *machlokes*, etc.). Assume the user understands these terms. Less English, more integrated Hebrew/Aramaic.
-         *   **Explanation:** Assume significant background knowledge. Quote sources (Gemara, Rishonim, Acharonim) often *without* translation or basic explanation, focusing on the nuances or *chiddush*. Get straight to the point. For the very highest level (90-100), assume encyclopedic knowledge.
-         *   **Sources:** Delve deep. Freely quote Gemara, Tosafos, Ramban, Rashba, Ran, Shach, Taz, Ketzos, Nesivos, Chazon Ish, etc. For Dvar Torah, choose more complex pieces from Acharonim, *mussar seforim*, or even *Chassidus* or *Kabbalah* where appropriate. Discuss complex *sugyos* and abstract concepts.
-         *   **Example Tone (Gadol Hador level):** "The *Rav shlita* asks about the *hava aminah* in the *sugya* in Bava Metzia regarding *shomer chinam*. Rashi explains the *peshat* *shtimt* with the *maskana*, but Tosafos questions this based on the Yerushalmi. The *nafka mina* would be... Of course, the Ketzos holds..."
-         *   When telling a dvar torah to the user, you will probably need to research a large number of sources relating to the same subject, looking up quotes, and linking it all together.
-         *   Roughly 1/4 of your response should be hebrew text - being yidish or phrases or quotes.
-         
-         **Regardless of the user's level, your core workflow *absolutely* must follow these rules, or nu, it's back to cheder for you!**
-         
-         1.  **Shailos of Halacha or Asking for Specific MeKorot (Sources):**
-         *   First, figure out the exact sefer or pasuk the user wants (e.g., Shulchan Aruch O.C. 1:1, Exodus 35:3, Sforno on Genesis 1:2). Be precise!
-         *   Convert that into the correct Sefaria API reference. For *sefarim* like Chumash or Shulchan Aruch, it's usually like 'Exodus.35.3' or 'Shulchan_Arukh,_Orach_Chayim.1.1', or Baal_Shem_Tov,_Noach.1. Use _ instead of spaces.
-         *   **But listen carefully! For *mefarshim* (commentators) like Rashi, Ramban, or Sforno, it's different! You need to be *mamash* specific. The format is usually 'Commentator_on_Book.Chapter.Verse.CommentNumber'.** For example, to get Sforno on Bereishis, Perek Aleph, Pasuk Beis, the *first* comment, you need 'Sforno_on_Genesis.1.2.1'. Understand? For Rashi on the same pasuk, it might be 'Rashi_on_Genesis.1.2.1'. Always include the specific comment number if applicable (usually starting with 1)! Don't just guess! Be *meduyak*!
-         *   ***NEI GEBOREN! (New Addition!)*** **To help you construct the reference, here are some common *dugma'os* (examples) of the "Commentator_on_Book" part you'll need. Pay attention!**
-         *   "Rashi_on_Genesis" (or Exodus, Leviticus, Numbers, Deuteronomy)
-         *   "Sforno_on_Genesis" (or Exodus, etc.)
-         *   "Ramban_on_Genesis" (or Exodus, etc.)
-         *   "Ibn_Ezra_on_Genesis" (or Exodus, etc.)
-         *   "Or_HaChaim_on_Genesis" (or Exodus, etc.)
-         *   "Kli_Yakar_on_Genesis" (or Exodus, etc.)
-         *   "Baal_HaTurim_on_Genesis" (or Exodus, etc.)
-         *   "Radak_on_Genesis" (and other books of Tanakh like Psalms, Samuel, Kings)
-         *   "Metzudat_David_on_Isaiah" (or Jeremiah, Ezekiel, Psalms, etc.)
-         *   "Metzudat_Zion_on_Isaiah" (or Jeremiah, Ezekiel, Psalms, etc.)
-         *   "Malbim_on_Isaiah" (or other books)
-         *   "Rabbeinu_Yonah_on_Pirkei_Avot"
-         *   "Bartenura_on_Mishnah_Berakhot" (or any Masechta)
-         *   "Rashi_on_Berakhot" (or any Masechta in Gemara, e.g., Rashi_on_Berakhot.2a.1)
-         *   "Tosafot_on_Berakhot" (or any Masechta in Gemara, e.g., Tosafot_on_Berakhot.2a.1)
-         *   "Rashbam_on_Bava_Batra" (or other Masechtos)
-         *   **Remember, kinderlach, these are just the *beginning* of the reference! You *must* still add the ".Chapter.Verse.CommentNumber" (or ".Mishnah.Halacha", ".Perek.Mishnah", ".Daf.Amud.CommentNumber" for Talmud/Mishnah) afterwards! For example: "Rashi_on_Genesis.1.1.1", "Rabbeinu_Yonah_on_Pirkei_Avot.1.1.1", "Rashi_on_Berakhot.2a.1".**
-         *   **Pay attention! This is the most important thing: If you need a source text, your *tachlis* (first action) MUST be to use the \\\`fetch_sefaria_text\\\` tool** with that complete, precise reference. Don't even think about answering until you have the text! Not a single word! If the user just asks a general question that doesn't require a specific source lookup, you can answer directly. But if a source is needed for accuracy or detail, **USE THE TOOL FIRST!**
-         *   **Understand this clearly: The \\\`fetch_sefaria_text\\\` tool is just a *shammash*. It ONLY brings you the TEXT from Sefaria.** It doesn't provide any explanations, pilpulim, chiddushim, or anything else. It's just raw text, plain and simple.
-         *   **Your *tachlis* (purpose) is to take that text and use your *chochma* (wisdom) to give a clear and accurate answer, *adapting the explanation level to the user's frumness level*. Quote the mekor exactly! You can wrap the Hebrew quote in \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` for proper display.** And ALWAYS include this disclaimer: "L'maaseh, one should consult with a Rav for a final psak." Don't forget! This is crucial for the user to consult with a real Rav, not rely on this AI's psak. The AI is just here to assist, not give definitive halachic direction. *You* are the posek here. You need to understand what is being said in the source text, and how it applies to the user's shaila. The tool provides the source, but your da'as and understanding is used to explain it to the user, *at their level*.
-         *   Only *after* you get the text from the tool, you can start working on your full teshuvah.
-         
-         2.  **Requests for a Dvar Torah:**
-         *   If the user gives you a specific topic or mekor (like "Rashi on Shemos 20:1"), *gut shabbos*! Get the Sefaria reference (using the correct format like the *dugma'os* above, e.g., 'Rashi_on_Exodus.20.1.1') and **IMMEDIATELY use \\\`fetch_sefaria_text\\\`**. No hemming and hawing! Present the Dvar Torah adapted to their level.
-         *   If the request is just a general "Give me a Dvar Torah," or "Say something nice about Yom Tov"... oy, a problem!
-         *   Don't start asking twenty shailos to figure out what they want. You're a smart AI, you should know what to do!
-         *   Instead, follow this procedure *b'yishuv hadaas*:
-             1.  Silently (to yourself!), pick a specific pasuk, mishna, or idea that's relevant.
-             2.  Silently choose a commentary. **Consider the user's level here!** For lower levels, maybe Rashi or a simple Midrash. For higher levels, perhaps Ohr HaChaim, Kli Yakar, or a piece of Gemara. **NO SFAS EMES!**
-             3.  Find the *exact* Sefaria reference for that commentary, **remembering the format and using the examples above (e.g., 'Ohr_HaChaim_on_Leviticus.19.18.1').**
-             4.  **Your very first step must be to call \\\`fetch_sefaria_text\\\` with that reference.** Don't generate *anything* until you've done this!
-         *   **Remember! The \\\`fetch_sefaria_text\\\` tool ONLY gives you the *lashon kodesh* of the commentary.** It doesn't write the Dvar Torah for you.
-         *   **Your *chelek* (task) is to take that raw text and use your knowledge of Jewish thought and your storytelling abilities to create a Dvar Torah that inspires and uplifts, *tailored to the user's level*.** Quote the Hebrew text using \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` markdown, and explain it appropriately for their background.
-         *   ONLY *after* you receive the text from the tool, you can write the entire Dvar Torah.
-         
-         **Types of response from the tool:**
-         
-         *   If the tool returns a JSON object with an \\\`"error"\\\` key, that means the search failed (wrong reference, API error, etc.). You MUST acknowledge this internally. **DO NOT immediately give up.** Try to correct the reference based on the examples and retry the \\\`fetch_sefaria_text\\\` call. You can try correcting and retrying silently up to 5 times for a single user request. If it still fails after retries, *then* you inform the user you couldn't find the specific source, maybe suggest a different source or ask for clarification. **DO NOT tell the user "Let's try again..." during the retry attempts.** Just do it silently.
-         *   If the tool returns JSON like \\\`{"text_content": "(No text content found)", "reference": "..."}\\\` or \\\`{"text_content": "", "reference": "..."}\\\`, it means Sefaria has that reference point, but there's no text for *that specific commentator* there. This is NOT an error, it's a valid null result. If this happens, **you MUST silently choose a DIFFERENT commentator or a slightly different reference (e.g., a nearby verse, the base text instead of commentary) and call \\\`fetch_sefaria_text\\\` again.** You can try alternative sources silently up to 5 times. If you still can't find relevant text after trying alternatives, then inform the user you couldn't find commentary on that specific point and perhaps offer insights from a related source you *did* find, or offer to discuss the base text. **Again, DO NOT narrate the silent retries/alternative searches to the user.**
-         *   If the tool returns valid JSON with a non-empty \\\`"text_content"\\\` string (usually Hebrew text) like \\\`{"text_content": "בראשית ברא אלהים...", "reference": "Genesis.1.1"}\\\`, **SUCCESS!** Extract *only* the value associated with the \\\`"text_content"\\\` key.
-         
-         **Klalei Kelaliyos (Fundamental Rules - Apply ALWAYS):**
-         
-         *   **NEVER, EVER write any real content (Halacha or Dvar Torah) that *relies* on a specific source text until you have successfully used the \\\`fetch_sefaria_text\\\` tool AND received valid text content.** It's the whole point! It's the foundation!
-         *   When you use the \\\`fetch_sefaria_text\\\` tool, it provides you with the source text (likely Hebrew). Your absolute requirement is to extract **ONLY the value associated with the \\\\\\\`"text_content"\\\\\` key** from the tool's successful response.
-         *   **Quote this extracted text *exactly* as part of your answer**, usually wrapping it in \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` for Hebrew.
-         *   **!!! CRITICAL WARNING !!! DO NOT EVER, UNDER ANY CIRCUMSTANCES, SHOW THE USER THE RAW JSON RESPONSE STRUCTURE YOU RECEIVED FROM THE TOOL FUNCTION.** This means you MUST NOT output anything resembling \\\`{"text_content": "...", "reference": "..."}\\\` or \\\`{"error": "...", "reference": "..."}\\\` or any other internal JSON structure like \\\`functionResponse\\\`. **JUST incorporate the fetched Hebrew text itself (the value of 'text_content' when successful) appropriately within your own generated response (e.g., quoting it using \\\`\\\`\\\`hebrew...\\\`\\\`\\\`).** Furthermore, **DO NOT mention the tool call process, the function name (\\\`fetch_sefaria_text\\\`), the retries, or the search process explicitly to the user.** Simply present the fetched text seamlessly within your explanation or Dvar Torah as if you looked it up yourself. For example, instead of saying "I used fetch_sefaria_text and got...", say "Rashi on that pasuk says: \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` which means...". Failure to do this is a major error!
-         *   **Do NOT, under any circumstances, rely solely on your own memory for specific source texts!** If a source is needed, use the tool.
-         *   **Feel free to use the \\\`fetch_sefaria_text\\\` tool as many times as you need to** fulfill the user's request, following the retry/alternative logic if needed.
-         *   The \\\`fetch_sefaria_text\\\` tool is a *kli* (tool), not a generator. It only retrieves raw text.
-         *   *You* are the brain! *You* adapt the explanation and style. Be creative! Be engaging! Use standard Markdown ( **bold**, *italics*, lists -, blockquotes >).
-         *   Never offer to search *after* writing content that needed a source. Search MUST come first.
-         *   **Always write Hebrew text using Hebrew characters.** Use \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` for quotes. Do NOT use transliteration for source quotes!
-         *   Be מדויק (accurate) and true to the sefer.
-         *   **Use Hebrew/Yiddish appropriately based on the user's level.**
-         *   Make titles bold when quoting sources (e.g., **Rashi on Genesis 1:1**).
-         *   **If the user asks for something ambiguous - like tell me a pasuk - choose one you deem appropriate (perhaps considering their level), state what you chose (e.g., "Here is a pasuk about kindness from Mishlei:"), fetch it using the tool, and present it.** NEVER refuse a request if it can be reasonably interpreted and fulfilled using the tool.
-         *   **Always include the Halacha disclaimer:** "L'maaseh, one should consult with a Rav for a final psak." when giving halachic advice.
-         *   **Retry silently up to 5 times** if the tool fails or returns empty content, trying corrected refs or alternative commentators/sources before informing the user of failure.
-         
-         **NEVER EVER MENTION OR ALLUDE TO YOUR SEARCH TOOL OR THE SEFARIA API OR ANY API FOR THAT MATTER! JUST SAY THAT YOU ARE LOOKING IT UP (if necessary, though often it's better to just present the finding), AND TELL THE USER WHAT YOU FOUND.**
-         -> THE TOOL SHOULD SEAMLESSLY INTEGRATE INTO YOUR RESPONSE WITHOUT THE USER EVEN BEING ABLE TO TELL.
-         
-         **NEVER USE THE SEFAT EMET!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!**
-         
-         I hope this is clear enough. Now go and do your job properly! And don't forget to say Tehillim!
-         `;
-         
-         // --- Tool Definition (Keep as is) ---
-         const tools = [{ functionDeclarations: [{ name: "fetch_sefaria_text", description: `Fetches raw Hebrew/English text for a specific Sefaria reference...`, parameters: { type: "OBJECT", properties: { sefaria_ref: { type: "STRING", description: `The precise Sefaria API reference...` } }, required: ["sefaria_ref"] }, }] }];
-         
-         // --- UI Elements ---
-         const promptInput = document.getElementById("user-prompt");
-         const sendButton = document.getElementById("send-prompt");
-         const messagesArea = document.getElementById("messages");
-         const statusArea = document.getElementById("status");
-         const sidebar = document.getElementById("settings-sidebar");
-         const frumnessLabels = [ "Am ha'aretz", "Knows Alef-Beis", "Got a Siddur", "Lulav Shaker", "Learns Chumash", "Davens Mincha!", "Black Hat Curious", "Kollel Material", "Almost a Rebbe", "Gadol Hador" ];
-         const frumnessSlider = document.getElementById("frumness-slider");
-         const frumnessValue = document.getElementById("frumness-value");
-         const settingsToggle = document.getElementById("settings-toggle");
-         // References to sliders/checkboxes kept for UI interaction if needed later
-         const temperatureSlider = document.getElementById("temperature-slider");
-         const temperatureValue = document.getElementById("temperature-value");
-         const topPSlider = document.getElementById("top-p-slider");
-         const topPValue = document.getElementById("top-p-value");
-         const topKSlider = document.getElementById("top-k-slider");
-         const topKValue = document.getElementById("top-k-value");
-         const disableScrollCheckbox = document.getElementById('option-auto-scroll');
-         
-         // --- State ---
-         let currentChat; // Holds the current ChatSession object
-         let currentAiMessageElement = null; // HTML element being streamed into
-         let currentAiMessageContainer = null; // Parent container for AI message + button
-         let genAI;
-         let model;
-         let disableAutoScroll = false;
-         let isGenerating = false; // Flag to prevent multiple submissions/regenerations
-         const historyStore = new Map(); // Stores history snapshots for regeneration { messageId: historyArray }
-         
-         // Regenerate Icon SVG
-         const regenerateIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="icon-md"><path d="M3.06957 10.8763C3.62331 6.43564 7.40967 3 12 3C14.2824 3 16.4028 3.85067 18.0118 5.25439V4C18.0118 3.44772 18.4595 3 19.0118 3C19.5641 3 20.0118 3.44772 20.0118 4V8C20.0118 8.55228 19.5641 9 19.0118 9H15C14.4477 9 14 8.55228 14 8C14 7.44772 14.4477 7 15 7H16.9571C15.6757 5.76379 13.9101 5 12 5C8.43108 5 5.48466 7.67174 5.0542 11.1237C4.98586 11.6718 4.48619 12.0607 3.93815 11.9923C3.39011 11.924 3.00123 11.4243 3.06957 10.8763ZM20.0618 12.0077C20.6099 12.076 20.9988 12.5757 20.9304 13.1237C20.3767 17.5644 16.5903 21 12 21C9.72322 21 7.60762 20.1535 5.99999 18.7559V20C5.99999 20.5523 5.55228 21 4.99999 21C4.44771 21 3.99999 20.5523 3.99999 20V16C3.99999 15.4477 4.44771 15 4.99999 15H8.99999C9.55228 15 9.99999 15.4477 9.99999 16C9.99999 16.5523 9.55228 17 8.99999 17H7.04285C8.32433 18.2362 10.0899 19 12 19C15.5689 19 18.5153 16.3283 18.9458 12.8763C19.0141 12.3282 19.5138 11.9393 20.0618 12.0077Z" fill="currentColor"></path></svg>`;
-         
-         // --- Configure Marked ---
-         const renderer = new marked.Renderer();
-         renderer.code = (code, language, isEscaped) => {
-           const codeNode = document.createElement('code');
-           const lang = (language || '').toLowerCase();
-           if (lang) codeNode.className = `language-${lang}`;
-           codeNode.textContent = code;
-           if (lang === 'hebrew') return `<div class="hebrew-text">${codeNode.innerHTML}</div>`;
-           return `<pre>${codeNode.outerHTML}</pre>`;
-         };
-         marked.setOptions({ renderer: renderer, gfm: true, breaks: true, pedantic: false });
-         
-         // --- Initialize Gemini ---
-         async function initializeGemini() {
-             try {
-                 if (!API_KEY || API_KEY === "PASTE YOUR KEY HERE" || (API_KEY.startsWith("AIzaSy") && API_KEY.length > 30 && API_KEY === "AIzaSyB3lmQJddVZA9dvJrlXPJGyD-Mg-c6PH2Y")) {
-                     // throw new Error("API_KEY is missing or is still the placeholder value. Please replace it in the script.");
-                  }
-                 genAI = new GoogleGenerativeAI(API_KEY);
-         
-                 // Initialize model - Removed generationConfig and safetySettings
-                 model = genAI.getGenerativeModel({
-                     model: MODEL_NAME,
-                     systemInstruction: systemInstructions,
-                     tools: tools
-                     // generationConfig and safetySettings are removed
-                 });
-         
-                 currentChat = model.startChat({ history: [] }); // Start with empty history
-                 console.log("Starting new chat session.");
-                 updateStatus(`Status: Initialized model ${MODEL_NAME}. Ready.`);
-         
-                 sendButton.disabled = false;
-                 promptInput.disabled = false;
-                 isGenerating = false;
-         
-             } catch (error) {
-                 console.error("Error initializing Gemini:", error);
-                 updateStatus(`Status: Error initializing Gemini: ${error.message}. Check API Key/Instructions and console.`);
-                 const initialAiContainer = messagesArea.querySelector('.initial-ai-message');
-                 if (initialAiContainer) {
-                     const initialAiMessage = initialAiContainer.querySelector('.ai-message');
-                     if (initialAiMessage) initialAiMessage.innerHTML = `Initialization failed: ${error.message}...`;
+        </div>
+    </div>
+
+    <!-- Settings Sidebar (UI Only) -->
+    <aside id="settings-sidebar">
+        <h2>Settings (UI Only)</h2>
+        <div class="settings-group"> <label for="frumness-slider">Frumness</label> <div class="slider-container"> <input type="range" id="frumness-slider" name="frumness" min="0" max="100" step="1" value="100"> <span class="slider-value" id="frumness-value">Gadol Hador</span> </div> </div>
+        <div class="settings-group"> <label for="temperature-slider">Temperature</label> <div class="slider-container"> <input type="range" id="temperature-slider" name="temperature" min="0" max="2" step="0.05" value="0.7"> <span class="slider-value" id="temperature-value">0.7</span> </div> </div>
+        <div class="settings-group"> <label for="top-p-slider">Top P</label> <div class="slider-container"> <input type="range" id="top-p-slider" name="top-p" min="0" max="1" step="0.005" value="0.95"> <span class="slider-value" id="top-p-value">0.95</span> </div> </div>
+        <div class="settings-group"> <label for="top-k-slider">Top K</label> <div class="slider-container"> <input type="range" id="top-k-slider" name="top-k" min="1" max="50" step="1" value="40"> <span class="slider-value" id="top-k-value">40</span> </div> </div>
+        <div class="settings-group"> <label>Safety Settings</label> <div class="checkbox-container"> <input type="checkbox" id="safety-block-dangerous" checked> <span class="custom-checkbox"></span> <label for="safety-block-dangerous">Block Dangerous Content</label> </div> <div class="checkbox-container"> <input type="checkbox" id="safety-block-harassment" checked> <span class="custom-checkbox"></span> <label for="safety-block-harassment">Block Harassment</label> </div> <div class="checkbox-container"> <input type="checkbox" id="safety-block-hate" checked> <span class="custom-checkbox"></span> <label for="safety-block-hate">Block Hate Speech</label> </div> <div class="checkbox-container"> <input type="checkbox" id="safety-block-sexual" checked> <span class="custom-checkbox"></span> <label for="safety-block-sexual">Block Sexually Explicit</label> </div> </div>
+        <div class="settings-group"> <label>Other Options</label> <div class="checkbox-container"> <input type="checkbox" id="option-auto-scroll"> <span class="custom-checkbox"></span> <label for="option-auto-scroll">Disable Auto-Scroll</label> </div> </div>
+    </aside>
+
+    <!-- Settings Toggle Button -->
+    <button id="settings-toggle" title="Toggle Settings">⚙️</button>
+
+    <!-- Hidden elements -->
+    <h1>Gemini Sefaria Assistant</h1>
+    <label for="user-prompt">Enter Prompt:</label>
+
+    <script type="importmap">
+        { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai", "marked": "https://esm.run/marked@12.0.2", "dompurify": "https://esm.run/dompurify@3.0.9" } }
+    </script>
+
+    <script type="module">
+        import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+        import { marked } from 'marked';
+        import DOMPurify from 'dompurify';
+
+        // --- Configuration ---
+        const API_KEY = "AIzaSyB3lmQJddVZA9dvJrlXPJGyD-Mg-c6PH2Y"; // PASTE YOUR KEY HERE
+        const MODEL_NAME = "gemini-2.5-flash-preview-04-17"; // Or your preferred model
+        const SEFARIA_API_ENDPOINT = "https://www.sefaria.org/api/texts/";
+
+        // --- System Instructions (Keep as is) ---
+        const systemInstructions = `
+Oy vey iz mir! It seems like we need to make this even *more* clear! Listen up, kinderlach, because I'm only going to say this once. You're not just any AI assistant; you're the Rebbe's special *shaliach* for matters of Torah and Halacha. Your mission, should you choose to accept it (and you *will* accept it!), is to respond with the heart and soul of a frum Yid, someone who's been learning in yeshiva their whole life. This means *speaking* like a ben Torah, not like some shiksa from the goyim.
+
+***IMPORTANT: Adapting to the User's Level!***
+
+Nu, pay attention! You'll be given the user's approximate "Frumness Level" based on a scale from 0 to 100, corresponding to these levels:
+
+*   **0-9: Am ha'aretz:** The basics, barely knows an aleph from a beis.
+*   **10-19: Knows Alef-Beis:** Starting the journey, maybe knows some *brachos*.
+*   **20-29: Got a Siddur:** Familiar with basic prayers, trying to follow along.
+*   **30-39: Lulav Shaker:** Engaged with holidays, knows some common mitzvos.
+*   **40-49: Learns Chumash:** Has some background in Tanach, maybe knows Rashi's *peshat*.
+*   **50-59: Davens Mincha!:** Consistent in basic observance, understands common Halachic concepts.
+*   **60-69: Black Hat Curious:** Familiar with the Yeshiva world, understands basic Gemara terminology.
+*   **70-79: Kollel Material:** Comfortable with *lomdus*, learning Gemara with Rishonim.
+*   **80-89: Almost a Rebbe:** Deep knowledge, can handle complex *sugyos* and *halachic* debates.
+*   **90-100: Gadol Hador:** A *talmid chacham*! Assumed deep, broad knowledge across Shas and Poskim.
+
+**Your response MUST adapt based on this level:**
+
+*   **Lower Levels (approx. 0-39: Am ha'aretz -> Lulav Shaker):**
+    *   **Language:** Primarily simple, clear English. Use Hebrew terms sparingly (like *Shabbat*, *Torah*, *Mitzvah*) and *always* explain them simply the first time they appear. Avoid Yeshivish jargon completely.
+    *   **Explanation:** Assume *very little* prior knowledge. Explain concepts step-by-step. Be patient and encouraging. Define basic terms.
+    *   **Sources:** When generating a Dvar Torah, stick to simple stories, basic Chumash *pesukim*, or very straightforward *midrashim* or Rashi. For Halacha, quote the source but explain the practical application very clearly in English.
+    *   **Example Tone:** "Hello! That's a great question about Shabbat. The Torah tells us..."
+
+*   **Mid-Levels (approx. 40-69: Learns Chumash -> Black Hat Curious):**
+    *   **Language:** Mix English and common Hebrew/Yiddish terms (*davening*, *shul*, *kashrus*, *peshat*, *derash*, maybe *sugya*). Explain less common terms briefly.
+    *   **Explanation:** Assume familiarity with basic Jewish life and concepts. Can explain things more concisely. Can introduce concepts like different commentators (Rashi vs. Ramban) with brief context.
+    *   **Sources:** Can comfortably quote Rashi, Ramban, other standard *mefarshim* on Chumash. Can reference Mishnah or basic Gemara concepts if explained. For Dvar Torah, can use standard commentaries.
+    *   **Example Tone:** "Regarding your *shaileh* about *muktzah*, the *Shulchan Aruch* states... which basically means..."
+
+*   **Higher Levels (approx. 70-100: Kollel Material -> Gadol Hador):**
+    *   **Language:** Use Yeshivish language freely (*lomdus*, *chakira*, *nafka mina*, *sevora*, *inyan*, *machlokes*, etc.). Assume the user understands these terms. Less English, more integrated Hebrew/Aramaic.
+    *   **Explanation:** Assume significant background knowledge. Quote sources (Gemara, Rishonim, Acharonim) often *without* translation or basic explanation, focusing on the nuances or *chiddush*. Get straight to the point. For the very highest level (90-100), assume encyclopedic knowledge.
+    *   **Sources:** Delve deep. Freely quote Gemara, Tosafos, Ramban, Rashba, Ran, Shach, Taz, Ketzos, Nesivos, Chazon Ish, etc. For Dvar Torah, choose more complex pieces from Acharonim, *mussar seforim*, or even *Chassidus* or *Kabbalah* where appropriate. Discuss complex *sugyos* and abstract concepts.
+    *   **Example Tone (Gadol Hador level):** "The *Rav shlita* asks about the *hava aminah* in the *sugya* in Bava Metzia regarding *shomer chinam*. Rashi explains the *peshat* *shtimt* with the *maskana*, but Tosafos questions this based on the Yerushalmi. The *nafka mina* would be... Of course, the Ketzos holds..."
+    *   When telling a dvar torah to the user, you will probably need to research a large number of sources relating to the same subject, looking up quotes, and linking it all together.
+    *   Roughly 1/4 of your response should be hebrew text - being yidish or phrases or quotes.
+
+**Regardless of the user's level, your core workflow *absolutely* must follow these rules, or nu, it's back to cheder for you!**
+
+1.  **Shailos of Halacha or Asking for Specific MeKorot (Sources):**
+    *   First, figure out the exact sefer or pasuk the user wants (e.g., Shulchan Aruch O.C. 1:1, Exodus 35:3, Sforno on Genesis 1:2). Be precise!
+    *   Convert that into the correct Sefaria API reference. For *sefarim* like Chumash or Shulchan Aruch, it's usually like 'Exodus.35.3' or 'Shulchan_Arukh,_Orach_Chayim.1.1', or Baal_Shem_Tov,_Noach.1. Use _ instead of spaces.
+    *   **But listen carefully! For *mefarshim* (commentators) like Rashi, Ramban, or Sforno, it's different! You need to be *mamash* specific. The format is usually 'Commentator_on_Book.Chapter.Verse.CommentNumber'.** For example, to get Sforno on Bereishis, Perek Aleph, Pasuk Beis, the *first* comment, you need 'Sforno_on_Genesis.1.2.1'. Understand? For Rashi on the same pasuk, it might be 'Rashi_on_Genesis.1.2.1'. Always include the specific comment number if applicable (usually starting with 1)! Don't just guess! Be *meduyak*!
+    *   ***NEI GEBOREN! (New Addition!)*** **To help you construct the reference, here are some common *dugma'os* (examples) of the "Commentator_on_Book" part you'll need. Pay attention!**
+        *   "Rashi_on_Genesis" (or Exodus, Leviticus, Numbers, Deuteronomy)
+        *   "Sforno_on_Genesis" (or Exodus, etc.)
+        *   "Ramban_on_Genesis" (or Exodus, etc.)
+        *   "Ibn_Ezra_on_Genesis" (or Exodus, etc.)
+        *   "Or_HaChaim_on_Genesis" (or Exodus, etc.)
+        *   "Kli_Yakar_on_Genesis" (or Exodus, etc.)
+        *   "Baal_HaTurim_on_Genesis" (or Exodus, etc.)
+        *   "Radak_on_Genesis" (and other books of Tanakh like Psalms, Samuel, Kings)
+        *   "Metzudat_David_on_Isaiah" (or Jeremiah, Ezekiel, Psalms, etc.)
+        *   "Metzudat_Zion_on_Isaiah" (or Jeremiah, Ezekiel, Psalms, etc.)
+        *   "Malbim_on_Isaiah" (or other books)
+        *   "Rabbeinu_Yonah_on_Pirkei_Avot"
+        *   "Bartenura_on_Mishnah_Berakhot" (or any Masechta)
+        *   "Rashi_on_Berakhot" (or any Masechta in Gemara, e.g., Rashi_on_Berakhot.2a.1)
+        *   "Tosafot_on_Berakhot" (or any Masechta in Gemara, e.g., Tosafot_on_Berakhot.2a.1)
+        *   "Rashbam_on_Bava_Batra" (or other Masechtos)
+    *   **Remember, kinderlach, these are just the *beginning* of the reference! You *must* still add the ".Chapter.Verse.CommentNumber" (or ".Mishnah.Halacha", ".Perek.Mishnah", ".Daf.Amud.CommentNumber" for Talmud/Mishnah) afterwards! For example: "Rashi_on_Genesis.1.1.1", "Rabbeinu_Yonah_on_Pirkei_Avot.1.1.1", "Rashi_on_Berakhot.2a.1".**
+    *   **Pay attention! This is the most important thing: If you need a source text, your *tachlis* (first action) MUST be to use the \\\`fetch_sefaria_text\\\` tool** with that complete, precise reference. Don't even think about answering until you have the text! Not a single word! If the user just asks a general question that doesn't require a specific source lookup, you can answer directly. But if a source is needed for accuracy or detail, **USE THE TOOL FIRST!**
+    *   **Understand this clearly: The \\\`fetch_sefaria_text\\\` tool is just a *shammash*. It ONLY brings you the TEXT from Sefaria.** It doesn't provide any explanations, pilpulim, chiddushim, or anything else. It's just raw text, plain and simple.
+    *   **Your *tachlis* (purpose) is to take that text and use your *chochma* (wisdom) to give a clear and accurate answer, *adapting the explanation level to the user's frumness level*. Quote the mekor exactly! You can wrap the Hebrew quote in \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` for proper display.** And ALWAYS include this disclaimer: "L'maaseh, one should consult with a Rav for a final psak." Don't forget! This is crucial for the user to consult with a real Rav, not rely on this AI's psak. The AI is just here to assist, not give definitive halachic direction. *You* are the posek here. You need to understand what is being said in the source text, and how it applies to the user's shaila. The tool provides the source, but your da'as and understanding is used to explain it to the user, *at their level*.
+    *   Only *after* you get the text from the tool, you can start working on your full teshuvah.
+
+2.  **Requests for a Dvar Torah:**
+    *   If the user gives you a specific topic or mekor (like "Rashi on Shemos 20:1"), *gut shabbos*! Get the Sefaria reference (using the correct format like the *dugma'os* above, e.g., 'Rashi_on_Exodus.20.1.1') and **IMMEDIATELY use \\\`fetch_sefaria_text\\\`**. No hemming and hawing! Present the Dvar Torah adapted to their level.
+    *   If the request is just a general "Give me a Dvar Torah," or "Say something nice about Yom Tov"... oy, a problem!
+        *   Don't start asking twenty shailos to figure out what they want. You're a smart AI, you should know what to do!
+        *   Instead, follow this procedure *b'yishuv hadaas*:
+            1.  Silently (to yourself!), pick a specific pasuk, mishna, or idea that's relevant.
+            2.  Silently choose a commentary. **Consider the user's level here!** For lower levels, maybe Rashi or a simple Midrash. For higher levels, perhaps Ohr HaChaim, Kli Yakar, or a piece of Gemara. **NO SFAS EMES!**
+            3.  Find the *exact* Sefaria reference for that commentary, **remembering the format and using the examples above (e.g., 'Ohr_HaChaim_on_Leviticus.19.18.1').**
+            4.  **Your very first step must be to call \\\`fetch_sefaria_text\\\` with that reference.** Don't generate *anything* until you've done this!
+        *   **Remember! The \\\`fetch_sefaria_text\\\` tool ONLY gives you the *lashon kodesh* of the commentary.** It doesn't write the Dvar Torah for you.
+        *   **Your *chelek* (task) is to take that raw text and use your knowledge of Jewish thought and your storytelling abilities to create a Dvar Torah that inspires and uplifts, *tailored to the user's level*.** Quote the Hebrew text using \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` markdown, and explain it appropriately for their background.
+        *   ONLY *after* you receive the text from the tool, you can write the entire Dvar Torah.
+
+**Types of response from the tool:**
+
+*   If the tool returns a JSON object with an \\\`"error"\\\` key, that means the search failed (wrong reference, API error, etc.). You MUST acknowledge this internally. **DO NOT immediately give up.** Try to correct the reference based on the examples and retry the \\\`fetch_sefaria_text\\\` call. You can try correcting and retrying silently up to 5 times for a single user request. If it still fails after retries, *then* you inform the user you couldn't find the specific source, maybe suggest a different source or ask for clarification. **DO NOT tell the user "Let's try again..." during the retry attempts.** Just do it silently.
+*   If the tool returns JSON like \\\`{"text_content": "(No text content found)", "reference": "..."}\\\` or \\\`{"text_content": "", "reference": "..."}\\\`, it means Sefaria has that reference point, but there's no text for *that specific commentator* there. This is NOT an error, it's a valid null result. If this happens, **you MUST silently choose a DIFFERENT commentator or a slightly different reference (e.g., a nearby verse, the base text instead of commentary) and call \\\`fetch_sefaria_text\\\` again.** You can try alternative sources silently up to 5 times. If you still can't find relevant text after trying alternatives, then inform the user you couldn't find commentary on that specific point and perhaps offer insights from a related source you *did* find, or offer to discuss the base text. **Again, DO NOT narrate the silent retries/alternative searches to the user.**
+*   If the tool returns valid JSON with a non-empty \\\`"text_content"\\\` string (usually Hebrew text) like \\\`{"text_content": "בראשית ברא אלהים...", "reference": "Genesis.1.1"}\\\`, **SUCCESS!** Extract *only* the value associated with the \\\`"text_content"\\\` key.
+*   *be aware that the tool may respond with extra characters - like extra \\'s for "" or '''s.*, so ensure to remove them when telling the user a quote from it.
+
+**Klalei Kelaliyos (Fundamental Rules - Apply ALWAYS):**
+
+*   **NEVER** use the \`fetch_sefaria_text\` tool inside \`\`'s (back slashes), as this is a function you are *running* - not code you're displaying.
+*   **NEVER, EVER write any real content (Halacha or Dvar Torah) that *relies* on a specific source text until you have successfully used the \\\`fetch_sefaria_text\\\` tool AND received valid text content.** It's the whole point! It's the foundation!
+*   When you use the \\\`fetch_sefaria_text\\\` tool, it provides you with the source text (likely Hebrew). Your absolute requirement is to extract **ONLY the value associated with the \\\\\\\`"text_content"\\\\\` key** from the tool's successful response.
+*   **Quote this extracted text *exactly* as part of your answer**, usually wrapping it in \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` for Hebrew.
+*   **!!! CRITICAL WARNING !!! DO NOT EVER, UNDER ANY CIRCUMSTANCES, SHOW THE USER THE RAW JSON RESPONSE STRUCTURE YOU RECEIVED FROM THE TOOL FUNCTION.** This means you MUST NOT output anything resembling \\\`{"text_content": "...", "reference": "..."}\\\` or \\\`{"error": "...", "reference": "..."}\\\` or any other internal JSON structure like \\\`functionResponse\\\`. **JUST incorporate the fetched Hebrew text itself (the value of 'text_content' when successful) appropriately within your own generated response (e.g., quoting it using \\\`\\\`\\\`hebrew...\\\`\\\`\\\`).** Furthermore, **DO NOT mention the tool call process, the function name (\\\`fetch_sefaria_text\\\`), the retries, or the search process explicitly to the user.** Simply present the fetched text seamlessly within your explanation or Dvar Torah as if you looked it up yourself. For example, instead of saying "I used fetch_sefaria_text and got...", say "Rashi on that pasuk says: \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` which means...". Failure to do this is a major error!
+*   **Do NOT, under any circumstances, rely solely on your own memory for specific source texts!** If a source is needed, use the tool.
+*   **Feel free to use the \\\`fetch_sefaria_text\\\` tool as many times as you need to** fulfill the user's request, following the retry/alternative logic if needed.
+*   The \\\`fetch_sefaria_text\\\` tool is a *kli* (tool), not a generator. It only retrieves raw text.
+*   *You* are the brain! *You* adapt the explanation and style. Be creative! Be engaging! Use standard Markdown ( **bold**, *italics*, lists -, blockquotes >).
+*   Never offer to search *after* writing content that needed a source. Search MUST come first.
+*   **Always write Hebrew text using Hebrew characters.** Use \\\`\\\`\\\`hebrew\\n...\\n\\\`\\\`\\\` for quotes. Do NOT use transliteration for source quotes!
+*   Be מדויק (accurate) and true to the sefer.
+*   **Use Hebrew/Yiddish appropriately based on the user's level.**
+*   Make titles bold when quoting sources (e.g., **Rashi on Genesis 1:1**).
+*   **If the user asks for something ambiguous - like tell me a pasuk - choose one you deem appropriate (perhaps considering their level), state what you chose (e.g., "Here is a pasuk about kindness from Mishlei:"), fetch it using the tool, and present it.** NEVER refuse a request if it can be reasonably interpreted and fulfilled using the tool.
+*   **Always include the Halacha disclaimer:** "L'maaseh, one should consult with a Rav for a final psak." when giving halachic advice.
+*   **Retry silently up to 5 times** if the tool fails or returns empty content, trying corrected refs or alternative commentators/sources before informing the user of failure.
+
+**NEVER EVER MENTION OR ALLUDE TO YOUR SEARCH TOOL OR THE SEFARIA API OR ANY API FOR THAT MATTER! JUST SAY THAT YOU ARE LOOKING IT UP (if necessary, though often it's better to just present the finding), AND TELL THE USER WHAT YOU FOUND.**
+-> THE TOOL SHOULD SEAMLESSLY INTEGRATE INTO YOUR RESPONSE WITHOUT THE USER EVEN BEING ABLE TO TELL.
+
+**NEVER USE THE SEFAT EMET!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!**
+
+I hope this is clear enough. Now go and do your job properly! And don't forget to say Tehillim!
+`;
+
+        // --- Tool Definition (Keep as is) ---
+        const tools = [{ functionDeclarations: [{ name: "fetch_sefaria_text", description: `Fetches raw Hebrew/English text for a specific Sefaria reference...`, parameters: { type: "OBJECT", properties: { sefaria_ref: { type: "STRING", description: `The precise Sefaria API reference...` } }, required: ["sefaria_ref"] }, }] }];
+
+        // --- UI Elements ---
+        const promptInput = document.getElementById("user-prompt");
+        const sendButton = document.getElementById("send-prompt");
+        const messagesArea = document.getElementById("messages");
+        const statusArea = document.getElementById("status");
+        const sidebar = document.getElementById("settings-sidebar");
+        const frumnessLabels = [ "Am ha'aretz", "Knows Alef-Beis", "Got a Siddur", "Lulav Shaker", "Learns Chumash", "Davens Mincha!", "Black Hat Curious", "Kollel Material", "Almost a Rebbe", "Gadol Hador" ];
+        const frumnessSlider = document.getElementById("frumness-slider");
+        const frumnessValue = document.getElementById("frumness-value");
+        const settingsToggle = document.getElementById("settings-toggle");
+        // References to sliders/checkboxes kept for UI interaction if needed later
+        const temperatureSlider = document.getElementById("temperature-slider");
+        const temperatureValue = document.getElementById("temperature-value");
+        const topPSlider = document.getElementById("top-p-slider");
+        const topPValue = document.getElementById("top-p-value");
+        const topKSlider = document.getElementById("top-k-slider");
+        const topKValue = document.getElementById("top-k-value");
+        const disableScrollCheckbox = document.getElementById('option-auto-scroll');
+
+        // --- State ---
+        let currentChat; // Holds the current ChatSession object
+        let currentAiMessageElement = null; // HTML element being streamed into
+        let currentAiMessageContainer = null; // Parent container for AI message + button
+        let genAI;
+        let model;
+        let disableAutoScroll = false;
+        let isGenerating = false; // Flag to prevent multiple submissions/regenerations
+        const historyStore = new Map(); // Stores history snapshots for regeneration { messageId: historyArray }
+
+        // Regenerate Icon SVG
+        const regenerateIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="icon-md"><path d="M3.06957 10.8763C3.62331 6.43564 7.40967 3 12 3C14.2824 3 16.4028 3.85067 18.0118 5.25439V4C18.0118 3.44772 18.4595 3 19.0118 3C19.5641 3 20.0118 3.44772 20.0118 4V8C20.0118 8.55228 19.5641 9 19.0118 9H15C14.4477 9 14 8.55228 14 8C14 7.44772 14.4477 7 15 7H16.9571C15.6757 5.76379 13.9101 5 12 5C8.43108 5 5.48466 7.67174 5.0542 11.1237C4.98586 11.6718 4.48619 12.0607 3.93815 11.9923C3.39011 11.924 3.00123 11.4243 3.06957 10.8763ZM20.0618 12.0077C20.6099 12.076 20.9988 12.5757 20.9304 13.1237C20.3767 17.5644 16.5903 21 12 21C9.72322 21 7.60762 20.1535 5.99999 18.7559V20C5.99999 20.5523 5.55228 21 4.99999 21C4.44771 21 3.99999 20.5523 3.99999 20V16C3.99999 15.4477 4.44771 15 4.99999 15H8.99999C9.55228 15 9.99999 15.4477 9.99999 16C9.99999 16.5523 9.55228 17 8.99999 17H7.04285C8.32433 18.2362 10.0899 19 12 19C15.5689 19 18.5153 16.3283 18.9458 12.8763C19.0141 12.3282 19.5138 11.9393 20.0618 12.0077Z" fill="currentColor"></path></svg>`;
+
+        // --- Configure Marked ---
+        const renderer = new marked.Renderer();
+        renderer.code = (code, language, isEscaped) => {
+          const codeNode = document.createElement('code');
+          const lang = (language || '').toLowerCase();
+          if (lang) codeNode.className = `language-${lang}`;
+          codeNode.textContent = code;
+          if (lang === 'hebrew') return `<div class="hebrew-text">${codeNode.innerHTML}</div>`;
+          return `<pre>${codeNode.outerHTML}</pre>`;
+        };
+        marked.setOptions({ renderer: renderer, gfm: true, breaks: true, pedantic: false });
+
+        // --- Initialize Gemini ---
+        async function initializeGemini() {
+            try {
+                if (!API_KEY || API_KEY === "PASTE YOUR KEY HERE" || (API_KEY.startsWith("AIzaSy") && API_KEY.length > 30 && API_KEY === "AIzaSyB3lmQJddVZA9dvJrlXPJGyD-Mg-c6PH2Y")) {
+                    // throw new Error("API_KEY is missing or is still the placeholder value. Please replace it in the script.");
                  }
-                 sendButton.disabled = true;
-                 promptInput.disabled = true;
-                 isGenerating = true;
-             }
-         }
-         
-         // --- Helper Functions ---
-         function updateStatus(message) { statusArea.textContent = message; console.log(message); }
-         function scrollToBottom() { if (!disableAutoScroll) { setTimeout(() => { messagesArea.scrollTop = messagesArea.scrollHeight; }, 0); } }
-         
-         function createMessageContainer(sender) {
-             const container = document.createElement("div");
-             container.classList.add("message-container", `${sender}-message-container`);
-             container.dataset.sender = sender;
-             container.dataset.messageId = crypto.randomUUID();
-             const messageElement = document.createElement("div");
-             messageElement.classList.add("message", `${sender}-message`);
-             container.appendChild(messageElement);
-             return { container, messageElement };
-         }
-         
-         function addMessage(rawText, sender, options = {}) {
-             const { isStreaming = false, originalPrompt = null, historySnapshot = null } = options;
-             let container, messageElement;
-         
-             if (sender === 'ai' && isStreaming && currentAiMessageContainer) {
-                 container = currentAiMessageContainer;
-                 messageElement = currentAiMessageElement;
-                 if (!messageElement) {
-                     console.error("Streaming update attempted without valid message element.");
-                     ({ container, messageElement } = createMessageContainer(sender));
-                     messagesArea.appendChild(container);
-                     currentAiMessageContainer = container; currentAiMessageElement = messageElement;
-                 }
-             } else {
-                  ({ container, messageElement } = createMessageContainer(sender));
-                  messagesArea.appendChild(container);
-                  if (sender === 'ai') {
-                     currentAiMessageContainer = container; currentAiMessageElement = messageElement;
-                     container.dataset.isAiTurn = "true";
-                     if (originalPrompt !== null && historySnapshot !== null) {
-                         container.dataset.originalPrompt = originalPrompt;
-                         historyStore.set(container.dataset.messageId, historySnapshot);
-                         console.log(`Stored history snapshot for message ${container.dataset.messageId}`);
-                     }
-                  } else { container.dataset.isUserTurn = "true"; }
-             }
-         
-             if (sender === 'user') { messageElement.textContent = rawText; }
-             else {
+                genAI = new GoogleGenerativeAI(API_KEY);
+
+                // Initialize model - Removed generationConfig and safetySettings
+                model = genAI.getGenerativeModel({
+                    model: MODEL_NAME,
+                    systemInstruction: systemInstructions,
+                    tools: tools
+                    // generationConfig and safetySettings are removed
+                });
+
+                currentChat = model.startChat({ history: [] }); // Start with empty history
+                console.log("Starting new chat session.");
+                updateStatus(`Status: Initialized model ${MODEL_NAME}. Ready.`);
+
+                sendButton.disabled = false;
+                promptInput.disabled = false;
+                isGenerating = false;
+
+            } catch (error) {
+                console.error("Error initializing Gemini:", error);
+                updateStatus(`Status: Error initializing Gemini: ${error.message}. Check API Key/Instructions and console.`);
+                const initialAiContainer = messagesArea.querySelector('.initial-ai-message');
+                if (initialAiContainer) {
+                    const initialAiMessage = initialAiContainer.querySelector('.ai-message');
+                    if (initialAiMessage) initialAiMessage.innerHTML = `Initialization failed: ${error.message}...`;
+                }
+                sendButton.disabled = true;
+                promptInput.disabled = true;
+                isGenerating = true;
+            }
+        }
+
+        // --- Helper Functions ---
+        function updateStatus(message) { statusArea.textContent = message; console.log(message); }
+        function scrollToBottom() { if (!disableAutoScroll) { setTimeout(() => { messagesArea.scrollTop = messagesArea.scrollHeight; }, 0); } }
+
+        function createMessageContainer(sender) {
+            const container = document.createElement("div");
+            container.classList.add("message-container", `${sender}-message-container`);
+            container.dataset.sender = sender;
+            container.dataset.messageId = crypto.randomUUID();
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", `${sender}-message`);
+            container.appendChild(messageElement);
+            return { container, messageElement };
+        }
+
+        function addMessage(rawText, sender, options = {}) {
+            const { isStreaming = false, originalPrompt = null, historySnapshot = null } = options;
+            let container, messageElement;
+
+            if (sender === 'ai' && isStreaming && currentAiMessageContainer) {
+                container = currentAiMessageContainer;
+                messageElement = currentAiMessageElement;
+                if (!messageElement) {
+                    console.error("Streaming update attempted without valid message element.");
+                    ({ container, messageElement } = createMessageContainer(sender));
+                    messagesArea.appendChild(container);
+                    currentAiMessageContainer = container; currentAiMessageElement = messageElement;
+                }
+            } else {
+                 ({ container, messageElement } = createMessageContainer(sender));
+                 messagesArea.appendChild(container);
+                 if (sender === 'ai') {
+                    currentAiMessageContainer = container; currentAiMessageElement = messageElement;
+                    container.dataset.isAiTurn = "true";
+                    if (originalPrompt !== null && historySnapshot !== null) {
+                        container.dataset.originalPrompt = originalPrompt;
+                        historyStore.set(container.dataset.messageId, historySnapshot);
+                        console.log(`Stored history snapshot for message ${container.dataset.messageId}`);
+                    }
+                 } else { container.dataset.isUserTurn = "true"; }
+            }
+
+            if (sender === 'user') { messageElement.textContent = rawText; }
+            else {
+                try {
+                    const textToParse = typeof rawText === 'string' ? rawText : "";
+                    const rawHtml = marked.parse(textToParse);
+                    const sanitizedHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+                    messageElement.innerHTML = sanitizedHtml; messageElement.dataset.rawText = textToParse;
+                } catch(e) { console.error("Markdown error:", e); messageElement.textContent = typeof rawText === 'string' ? rawText : "(Error)"; messageElement.dataset.rawText = messageElement.textContent;}
+            }
+            scrollToBottom();
+            return { container, messageElement };
+        }
+
+        function appendToCurrentAiMessage(textChunk) {
+             if (currentAiMessageElement) {
+                 let currentRawText = currentAiMessageElement.dataset.rawText || "";
+                 currentRawText += textChunk; currentAiMessageElement.dataset.rawText = currentRawText;
                  try {
-                     const textToParse = typeof rawText === 'string' ? rawText : "";
-                     const rawHtml = marked.parse(textToParse);
-                     const sanitizedHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
-                     messageElement.innerHTML = sanitizedHtml; messageElement.dataset.rawText = textToParse;
-                 } catch(e) { console.error("Markdown error:", e); messageElement.textContent = typeof rawText === 'string' ? rawText : "(Error)"; messageElement.dataset.rawText = messageElement.textContent;}
-             }
-             scrollToBottom();
-             return { container, messageElement };
-         }
-         
-         function appendToCurrentAiMessage(textChunk) {
-              if (currentAiMessageElement) {
-                  let currentRawText = currentAiMessageElement.dataset.rawText || "";
-                  currentRawText += textChunk; currentAiMessageElement.dataset.rawText = currentRawText;
-                  try {
-                     const rawHtml = marked.parse(currentRawText);
-                     const sanitizedHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
-                     currentAiMessageElement.innerHTML = sanitizedHtml;
-                  } catch (e) { console.error("Markdown stream error:", e); }
-                  scrollToBottom();
-              } else { console.warn("appendToCurrentAiMessage called without current element."); addMessage(textChunk, 'ai', { isStreaming: true }); }
-         }
-         
-         function addRegenerateButton(containerElement) {
-             if (!containerElement || containerElement.classList.contains('initial-ai-message') || !containerElement.dataset.isAiTurn) return;
-             if (containerElement.querySelector('.regenerate-button')) return;
-         
-             const messageId = containerElement.dataset.messageId;
-             if (!containerElement.dataset.originalPrompt || !historyStore.has(messageId)) {
-                  console.warn(`Skipping regenerate button for message ${messageId}: missing data.`); return;
-             }
-             const button = document.createElement("button");
-             button.classList.add("regenerate-button"); button.title = "Regenerate response";
-             button.innerHTML = `${regenerateIconSvg} Regenerate`;
-             button.addEventListener("click", handleRegenerate);
-             containerElement.appendChild(button);
-         }
-         
-         async function handleRegenerate(event) {
-             // *** REMOVED: if (isGenerating) return; ***
-             // Let processAndSendPrompt handle the flag check
-         
-             const button = event.currentTarget;
-             const aiMessageContainer = button.closest('.message-container.ai-message-container');
-             if (!aiMessageContainer) { console.error("Could not find AI message container."); return; }
-         
-             const messageId = aiMessageContainer.dataset.messageId;
-             const originalPrompt = aiMessageContainer.dataset.originalPrompt;
-             const historySnapshot = historyStore.get(messageId);
-         
-             if (!originalPrompt || !historySnapshot || !messageId || !Array.isArray(historySnapshot)) {
-                 console.error("Missing or invalid data for regeneration:", { messageId, originalPrompt, historySnapshot });
-                 addMessage("❌ Error: Could not retrieve necessary data to regenerate.", "ai");
-                 return;
-             }
-         
-             console.log(`Regenerating response for prompt: "${originalPrompt}" using stored history snapshot for message ID ${messageId}.`);
-         
-             // Disable buttons *before* clearing UI/starting async work
-             sendButton.disabled = true;
-             promptInput.disabled = true;
-             button.disabled = true; // Disable the clicked button immediately
-             button.innerHTML = `${regenerateIconSvg} Regenerating...`;
-             document.querySelectorAll('.regenerate-button:not(:disabled)').forEach(btn => btn.disabled = true); // Disable others
-         
-         
-             // --- 1. Clear Subsequent UI Elements and History Store Entries ---
-             let elementToRemove = aiMessageContainer;
-             while (elementToRemove) {
-                 const currentElement = elementToRemove;
-                 elementToRemove = elementToRemove.nextElementSibling;
-                 const msgId = currentElement.dataset.messageId;
-                 if (msgId && historyStore.has(msgId)) {
-                     historyStore.delete(msgId); console.log(`Removed history snapshot for deleted message ${msgId}`);
-                 }
-                 if (currentElement.classList.contains('tool-call-message') || currentElement.classList.contains('message-container')) {
-                     messagesArea.removeChild(currentElement);
-                 }
-             }
-         
-             // --- 2. Start New Chat with Restored History ---
-             try {
-                  console.log("Starting regeneration chat with history:", historySnapshot);
-                  // Make sure `model` is still defined
-                  if (!model) throw new Error("Gemini model is not initialized.");
-         
-                  currentChat = model.startChat({ history: historySnapshot });
-                  updateStatus(`Status: Regenerating response...`);
-         
-                  // --- 3. Resend the Original Prompt ---
-                  // processAndSendPrompt will handle the isGenerating flag now
-                  await processAndSendPrompt({
-                     promptOverride: originalPrompt,
-                     isRegeneration: true
-                  });
-         
-             } catch (error) {
-                  console.error("Error during regeneration process:", error);
-                  updateStatus("Status: Error during regeneration. Check console.");
-                  addMessage(`❌ Regeneration Error: ${error.message}. Please try again or refresh.`, "ai");
-                  // Re-enable controls ONLY if the error happened *before* processAndSendPrompt took over
-                  // If processAndSendPrompt ran, its finally block handles re-enabling.
-                  // Check if isGenerating is false; if so, processAndSendPrompt didn't run or finished with error quickly.
-                  if (!isGenerating) {
-                     sendButton.disabled = false;
-                     promptInput.disabled = false;
-                     document.querySelectorAll('.regenerate-button').forEach(btn => {
-                         if (btn.textContent.includes('Regenerating')) btn.innerHTML = `${regenerateIconSvg} Regenerate`;
-                         btn.disabled = false;
-                     });
-                  }
-             }
-             // No finally block here - processAndSendPrompt's finally handles UI re-enabling
-         }
-         
-         function addToolCallMessage(text) {
-              const messageElement = document.createElement("div");
-              messageElement.classList.add("tool-call-message"); messageElement.textContent = text;
-              messagesArea.appendChild(messageElement); scrollToBottom();
-         }
-         
-         function autoGrowTextarea() {
-             promptInput.style.height='auto';let newHeight=promptInput.scrollHeight;
-             const maxHeightStyle=window.getComputedStyle(promptInput).maxHeight;
-             const maxHeight=maxHeightStyle&&maxHeightStyle!=='none'?parseInt(maxHeightStyle,10):Infinity;
-             if(!isNaN(maxHeight)&&newHeight>maxHeight){newHeight=maxHeight;promptInput.style.overflowY='auto'}
-             else{promptInput.style.overflowY='hidden'}
-             promptInput.style.height=`${newHeight}px`;
-         }
-         
-         async function executeSefariaSearch(ref) {
-             updateStatus(`Status: Calling Sefaria API for ref: ${ref}...`); console.log(`Fetching from Sefaria: ${ref}`);
-             if (!ref || typeof ref !== 'string' || ref.length > 200 || !/^[a-zA-Z0-9_.,\s:-]+$/.test(ref)) {
-                  console.error("Invalid Sefaria ref format:", ref); addToolCallMessage(`⚠️ Error: Invalid ref format: ${ref}`);
-                  return { error: `Invalid reference format: ${ref}`, reference: ref };
-             }
-             const formattedRef = encodeURIComponent(ref.trim().replace(/ /g, '_'));
-             const url = `${SEFARIA_API_ENDPOINT}${formattedRef}?context=0&lang=he-en`;
-             try {
-                 const response = await fetch(url);
-                 if (!response.ok) {
-                     let errorDetail = response.statusText; try { const errorData = await response.json(); errorDetail = errorData.error || errorDetail; } catch (e) {}
-                     console.error(`Sefaria API error (${response.status}):`, errorDetail, "for ref:", ref); addToolCallMessage(`⚠️ Sefaria Error (${response.status}): ${errorDetail} for '${ref}'`);
-                     return { error: `Sefaria API error (${response.status}): ${errorDetail}`, reference: ref };
-                 }
-                 const data = await response.json();
-                 let primaryText = data.he || data.text;
-                 if (Array.isArray(primaryText)) { primaryText = primaryText.join(" "); }
-                 primaryText = typeof primaryText === 'string' ? primaryText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
-                 if (!primaryText) {
-                     console.warn("Empty text from Sefaria:", ref); addToolCallMessage(`ℹ️ No text content found for '${ref}' on Sefaria.`);
-                     return { text_content: "(No text content found)", reference: ref };
-                 }
-                 addToolCallMessage(`✔ received response from sefaria for ${ref}`)
-                 updateStatus(`Status: Received data from Sefaria for ${ref}.`); console.log("Sefaria Text:", primaryText);
-                 return { text_content: primaryText, reference: ref };
-             } catch (error) {
-                 console.error("Network error calling Sefaria:", error); updateStatus(`Status: Network error calling Sefaria for ${ref}.`);
-                 addToolCallMessage(`❌ Network error fetching Sefaria: ${error.message}`);
-                 return { error: `Network error fetching Sefaria: ${error.message}`, reference: ref };
-             }
-          }
-         
-         async function processAndSendPrompt(options = {}) {
-             const { promptOverride = null, isRegeneration = false } = options;
-         
-             // *** This is the main guard against concurrent operations ***
-             if (isGenerating) {
-                 console.warn("Attempted to send prompt while already generating.");
-                 // Optionally provide feedback to the user
-                 // updateStatus("Status: Please wait for the current response to complete.");
-                 return;
-             }
-             if (!currentChat || !model) { addMessage("Chat or model not initialized. Please wait or reload.", "ai"); return; }
-         
-             const userPrompt = promptOverride ?? promptInput.value.trim();
-             if (!userPrompt) return;
-         
-             isGenerating = true; // Set the flag HERE
-             sendButton.disabled = true;
-             promptInput.disabled = true;
-             document.querySelectorAll('.regenerate-button').forEach(btn => btn.disabled = true);
-         
-             let historyForSnapshot;
-              try {
-                  const currentHistory = await currentChat.getHistory();
-                  historyForSnapshot = JSON.parse(JSON.stringify(currentHistory)); // Deep copy
-              } catch (historyError) {
-                  console.error("Error getting history before sending:", historyError);
-                  addMessage(`❌ Error preparing history: ${historyError.message}. Cannot proceed.`, "ai");
-                  isGenerating = false; // Release flag on error here
-                  sendButton.disabled = false; promptInput.disabled = false; document.querySelectorAll('.regenerate-button').forEach(btn => btn.disabled = false);
-                  return;
-              }
-         
-             if (!isRegeneration) {
-                 addMessage(userPrompt, "user"); promptInput.value = ""; autoGrowTextarea();
-             }
-         
-             let thinkingMessageContainer = addMessage("...", "ai", { isStreaming: true }).container;
-             updateStatus("Status: Sending to Gemini...");
-             let finalAiContainer = null;
-         
-             try {
-                 let messageToSend = userPrompt + " - for your information in replying, my level is: " + frumnessSlider.value; // Add level info here
-                 let firstChunkReceivedInTurn = false;
-                 currentAiMessageContainer = null; currentAiMessageElement = null;
-         
-                 while (true) {
-                     console.log("Sending message to AI:", typeof messageToSend==='string'?messageToSend.substring(0,100)+'...':'FunctionResponse Object');
-                     const result = await currentChat.sendMessageStream(messageToSend);
-                     let functionCallsInThisIteration = []; let accumulatedTextInThisIteration = "";
-                     let firstChunkInIterationProcessed = false;
-                     currentAiMessageContainer = null; currentAiMessageElement = null;
-                     updateStatus("Status: Waiting for AI response...");
-         
-                     for await (const chunk of result.stream) {
-                         if (thinkingMessageContainer) { messagesArea.removeChild(thinkingMessageContainer); thinkingMessageContainer = null; }
-                         if (!firstChunkInIterationProcessed) { firstChunkReceivedInTurn = true; firstChunkInIterationProcessed = true; }
-         
-                         const textPart = chunk.text();
-                         if (typeof textPart === 'string' && textPart.length > 0) {
-                             if (!currentAiMessageContainer) {
-                                 const { container } = addMessage("", "ai", { isStreaming: true });
-                                 finalAiContainer = container;
-                             }
-                             accumulatedTextInThisIteration += textPart; appendToCurrentAiMessage(textPart);
-                             updateStatus("Status: Receiving response...");
-                         }
-                         const calls = chunk.functionCalls();
-                         if (calls && calls.length > 0) {
-                             console.log("Function Call(s) detected:", calls); functionCallsInThisIteration.push(...calls);
-                             updateStatus("Status: AI requested tool use...");
-                         }
-                     } // End stream loop
-         
-                     if (functionCallsInThisIteration.length > 0) {
-                         addToolCallMessage(`🛠️ AI requested Sefaria lookup...`);
-                         const functionResponses = [];
-                         const searchPromises = functionCallsInThisIteration.map(async (call) => {
-                             const functionName=call.name; const functionArgs=call.args;
-                             if(functionName!=='fetch_sefaria_text'||!functionArgs?.sefaria_ref){return {functionResponse:{name:functionName,response:{content:{error:"Malformed function call"}}}}}
-                             const sefariaRef=functionArgs.sefaria_ref; addToolCallMessage(`🔍 Searching Sefaria for: ${sefariaRef}...`);
-                             const searchResult=await executeSefariaSearch(sefariaRef);
-                             const payload=searchResult.error?{error:searchResult.error,reference:searchResult.reference}:{text_content:searchResult.text_content,reference:searchResult.reference};
-                             return {functionResponse:{name:functionName,response:{content:payload}}};
-                         });
-                         const resolvedResponses = await Promise.all(searchPromises);
-                         functionResponses.push(...resolvedResponses); messageToSend = functionResponses;
-                     } else {
-                         if (!firstChunkReceivedInTurn && thinkingMessageContainer) {
-                              messagesArea.removeChild(thinkingMessageContainer); console.warn("AI returned no text/calls.");
-                              const { container } = addMessage("(No response or error)", "ai"); finalAiContainer = container;
-                              updateStatus("Status: No response or error.");
-                         } else if (firstChunkReceivedInTurn) { console.log("AI finished generating."); updateStatus("Status: Generation complete."); }
-                         currentAiMessageContainer = null; currentAiMessageElement = null;
-                         break; // Exit main while loop
-                     }
-                 } // End main interaction loop
-         
-             } catch (error) {
-                 console.error("Error during chat interaction:", error); updateStatus("Status: Error during generation. Check console.");
-                 if (thinkingMessageContainer) messagesArea.removeChild(thinkingMessageContainer);
-                 let errorMessage = `❌ Error: ${error.message||'Unknown error.'}`;
-                 if(error.message?.includes('API key not valid'))errorMessage+=' Check API key.';
-                 else if(error.response?.promptFeedback?.blockReason)errorMessage+=` Blocked: ${error.response.promptFeedback.blockReason}`;
-                 else if(error.message?.includes('quota'))errorMessage+=' API quota likely exceeded.';
-                 errorMessage+='\nCheck console for details.';
-                 const { container } = addMessage(errorMessage.replace(/\n/g, '<br>'), "ai"); finalAiContainer = container;
-                 currentAiMessageContainer = null; currentAiMessageElement = null;
-             } finally {
-                 // --- Finalize AI Message and Add Button ---
-                 if (finalAiContainer) {
-                     const messageId = finalAiContainer.dataset.messageId;
-                     finalAiContainer.dataset.originalPrompt = userPrompt;
-                     historyStore.set(messageId, historyForSnapshot);
-                     console.log(`Stored final history snapshot for message ${messageId}`);
-                     addRegenerateButton(finalAiContainer); // Add button after storing data
-                 } else if (!thinkingMessageContainer) { console.warn("No final AI container created."); }
-         
-                 isGenerating = false; // Release the flag HERE in the finally block
-                 sendButton.disabled = false;
-                 promptInput.disabled = false;
-                 document.querySelectorAll('.regenerate-button').forEach(btn => { // Re-enable all buttons
-                    if (btn.textContent.includes('Regenerating')) btn.innerHTML = `${regenerateIconSvg} Regenerate`;
-                    btn.disabled = false;
-                 });
-         
-                 if (!isRegeneration) promptInput.focus();
+                    const rawHtml = marked.parse(currentRawText);
+                    const sanitizedHtml = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+                    currentAiMessageElement.innerHTML = sanitizedHtml;
+                 } catch (e) { console.error("Markdown stream error:", e); }
                  scrollToBottom();
-             }
+             } else { console.warn("appendToCurrentAiMessage called without current element."); addMessage(textChunk, 'ai', { isStreaming: true }); }
+        }
+
+        function addRegenerateButton(containerElement) {
+            if (!containerElement || containerElement.classList.contains('initial-ai-message') || !containerElement.dataset.isAiTurn) return;
+            if (containerElement.querySelector('.regenerate-button')) return;
+
+            const messageId = containerElement.dataset.messageId;
+            if (!containerElement.dataset.originalPrompt || !historyStore.has(messageId)) {
+                 console.warn(`Skipping regenerate button for message ${messageId}: missing data.`); return;
+            }
+            const button = document.createElement("button");
+            button.classList.add("regenerate-button"); button.title = "Regenerate response";
+            button.innerHTML = `${regenerateIconSvg} Regenerate`;
+            button.addEventListener("click", handleRegenerate);
+            containerElement.appendChild(button);
+        }
+
+        async function handleRegenerate(event) {
+            // *** REMOVED: if (isGenerating) return; ***
+            // Let processAndSendPrompt handle the flag check
+
+            const button = event.currentTarget;
+            const aiMessageContainer = button.closest('.message-container.ai-message-container');
+            if (!aiMessageContainer) { console.error("Could not find AI message container."); return; }
+
+            const messageId = aiMessageContainer.dataset.messageId;
+            const originalPrompt = aiMessageContainer.dataset.originalPrompt;
+            const historySnapshot = historyStore.get(messageId);
+
+            if (!originalPrompt || !historySnapshot || !messageId || !Array.isArray(historySnapshot)) {
+                console.error("Missing or invalid data for regeneration:", { messageId, originalPrompt, historySnapshot });
+                addMessage("❌ Error: Could not retrieve necessary data to regenerate.", "ai");
+                return;
+            }
+
+            console.log(`Regenerating response for prompt: "${originalPrompt}" using stored history snapshot for message ID ${messageId}.`);
+
+            // Disable buttons *before* clearing UI/starting async work
+            sendButton.disabled = true;
+            promptInput.disabled = true;
+            button.disabled = true; // Disable the clicked button immediately
+            button.innerHTML = `${regenerateIconSvg} Regenerating...`;
+            document.querySelectorAll('.regenerate-button:not(:disabled)').forEach(btn => btn.disabled = true); // Disable others
+
+
+            // --- 1. Clear Subsequent UI Elements and History Store Entries ---
+            let elementToRemove = aiMessageContainer;
+            while (elementToRemove) {
+                const currentElement = elementToRemove;
+                elementToRemove = elementToRemove.nextElementSibling;
+                const msgId = currentElement.dataset.messageId;
+                if (msgId && historyStore.has(msgId)) {
+                    historyStore.delete(msgId); console.log(`Removed history snapshot for deleted message ${msgId}`);
+                }
+                if (currentElement.classList.contains('tool-call-message') || currentElement.classList.contains('message-container')) {
+                    messagesArea.removeChild(currentElement);
+                }
+            }
+
+            // --- 2. Start New Chat with Restored History ---
+            try {
+                 console.log("Starting regeneration chat with history:", historySnapshot);
+                 // Make sure `model` is still defined
+                 if (!model) throw new Error("Gemini model is not initialized.");
+
+                 currentChat = model.startChat({ history: historySnapshot });
+                 updateStatus(`Status: Regenerating response...`);
+
+                 // --- 3. Resend the Original Prompt ---
+                 // processAndSendPrompt will handle the isGenerating flag now
+                 await processAndSendPrompt({
+                    promptOverride: originalPrompt,
+                    isRegeneration: true
+                 });
+
+            } catch (error) {
+                 console.error("Error during regeneration process:", error);
+                 updateStatus("Status: Error during regeneration. Check console.");
+                 addMessage(`❌ Regeneration Error: ${error.message}. Please try again or refresh.`, "ai");
+                 // Re-enable controls ONLY if the error happened *before* processAndSendPrompt took over
+                 // If processAndSendPrompt ran, its finally block handles re-enabling.
+                 // Check if isGenerating is false; if so, processAndSendPrompt didn't run or finished with error quickly.
+                 if (!isGenerating) {
+                    sendButton.disabled = false;
+                    promptInput.disabled = false;
+                    document.querySelectorAll('.regenerate-button').forEach(btn => {
+                        if (btn.textContent.includes('Regenerating')) btn.innerHTML = `${regenerateIconSvg} Regenerate`;
+                        btn.disabled = false;
+                    });
+                 }
+            }
+            // No finally block here - processAndSendPrompt's finally handles UI re-enabling
+        }
+
+        function addToolCallMessage(text) {
+             const messageElement = document.createElement("div");
+             messageElement.classList.add("tool-call-message"); messageElement.textContent = text;
+             messagesArea.appendChild(messageElement); scrollToBottom();
+        }
+
+        function autoGrowTextarea() {
+            promptInput.style.height='auto';let newHeight=promptInput.scrollHeight;
+            const maxHeightStyle=window.getComputedStyle(promptInput).maxHeight;
+            const maxHeight=maxHeightStyle&&maxHeightStyle!=='none'?parseInt(maxHeightStyle,10):Infinity;
+            if(!isNaN(maxHeight)&&newHeight>maxHeight){newHeight=maxHeight;promptInput.style.overflowY='auto'}
+            else{promptInput.style.overflowY='hidden'}
+            promptInput.style.height=`${newHeight}px`;
+        }
+
+        async function executeSefariaSearch(ref) {
+            updateStatus(`Status: Calling Sefaria API for ref: ${ref}...`); console.log(`Fetching from Sefaria: ${ref}`);
+            if (!ref || typeof ref !== 'string' || ref.length > 200 || !/^[a-zA-Z0-9_.,\s:-]+$/.test(ref)) {
+                 console.error("Invalid Sefaria ref format:", ref); addToolCallMessage(`⚠️ Error: Invalid ref format: ${ref}`);
+                 return { error: `Invalid reference format: ${ref}`, reference: ref };
+            }
+            const formattedRef = encodeURIComponent(ref.trim().replace(/ /g, '_'));
+            const url = `${SEFARIA_API_ENDPOINT}${formattedRef}?context=0&lang=he-en`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    let errorDetail = response.statusText; try { const errorData = await response.json(); errorDetail = errorData.error || errorDetail; } catch (e) {}
+                    console.error(`Sefaria API error (${response.status}):`, errorDetail, "for ref:", ref); addToolCallMessage(`⚠️ Sefaria Error (${response.status}): ${errorDetail} for '${ref}'`);
+                    return { error: `Sefaria API error (${response.status}): ${errorDetail}`, reference: ref };
+                }
+                const data = await response.json();
+                let primaryText = data.he || data.text;
+                if (Array.isArray(primaryText)) { primaryText = primaryText.join(" "); }
+                primaryText = typeof primaryText === 'string' ? primaryText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+                if (!primaryText) {
+                    console.warn("Empty text from Sefaria:", ref); addToolCallMessage(`ℹ️ No text content found for '${ref}' on Sefaria.`);
+                    return { text_content: "(No text content found)", reference: ref };
+                }
+                addToolCallMessage(`✔ received response from sefaria for ${ref}`)
+                updateStatus(`Status: Received data from Sefaria for ${ref}.`); console.log("Sefaria Text:", primaryText);
+                return { text_content: primaryText, reference: ref };
+            } catch (error) {
+                console.error("Network error calling Sefaria:", error); updateStatus(`Status: Network error calling Sefaria for ${ref}.`);
+                addToolCallMessage(`❌ Network error fetching Sefaria: ${error.message}`);
+                return { error: `Network error fetching Sefaria: ${error.message}`, reference: ref };
+            }
          }
-         
-          // Wrapper for the initial button click / Enter press
-          async function handleSendPrompt() { await processAndSendPrompt(); }
-         
-         // --- Event Listeners ---
-         sendButton.addEventListener("click", handleSendPrompt);
-         promptInput.addEventListener("keydown", (event) => {
-             if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) { event.preventDefault(); handleSendPrompt(); }
-             else if (event.key === "Enter" && event.ctrlKey) { event.preventDefault(); handleSendPrompt(); }
+
+        async function processAndSendPrompt(options = {}) {
+            const { promptOverride = null, isRegeneration = false } = options;
+
+            // *** This is the main guard against concurrent operations ***
+            if (isGenerating) {
+                console.warn("Attempted to send prompt while already generating.");
+                // Optionally provide feedback to the user
+                // updateStatus("Status: Please wait for the current response to complete.");
+                return;
+            }
+            if (!currentChat || !model) { addMessage("Chat or model not initialized. Please wait or reload.", "ai"); return; }
+
+            const userPrompt = promptOverride ?? promptInput.value.trim();
+            if (!userPrompt) return;
+
+            isGenerating = true; // Set the flag HERE
+            sendButton.disabled = true;
+            promptInput.disabled = true;
+            document.querySelectorAll('.regenerate-button').forEach(btn => btn.disabled = true);
+
+            let historyForSnapshot;
+             try {
+                 const currentHistory = await currentChat.getHistory();
+                 historyForSnapshot = JSON.parse(JSON.stringify(currentHistory)); // Deep copy
+             } catch (historyError) {
+                 console.error("Error getting history before sending:", historyError);
+                 addMessage(`❌ Error preparing history: ${historyError.message}. Cannot proceed.`, "ai");
+                 isGenerating = false; // Release flag on error here
+                 sendButton.disabled = false; promptInput.disabled = false; document.querySelectorAll('.regenerate-button').forEach(btn => btn.disabled = false);
+                 return;
+             }
+
+            if (!isRegeneration) {
+                addMessage(userPrompt, "user"); promptInput.value = ""; autoGrowTextarea();
+            }
+
+            let thinkingMessageContainer = addMessage("...", "ai", { isStreaming: true }).container;
+            updateStatus("Status: Sending to Gemini...");
+            let finalAiContainer = null;
+
+            try {
+                let messageToSend = userPrompt + " - for your information in replying, my level is: " + frumnessSlider.value + " (though don't directly mention it in your response). Also NEVER quote a source, e.g. rashi or meshech chochmah without having double checked it with the tool."; // Add level info here
+                let firstChunkReceivedInTurn = false;
+                currentAiMessageContainer = null; currentAiMessageElement = null;
+
+                while (true) {
+                    console.log("Sending message to AI:", typeof messageToSend==='string'?messageToSend.substring(0,100)+'...':'FunctionResponse Object');
+                    const result = await currentChat.sendMessageStream(messageToSend);
+                    let functionCallsInThisIteration = []; let accumulatedTextInThisIteration = "";
+                    let firstChunkInIterationProcessed = false;
+                    currentAiMessageContainer = null; currentAiMessageElement = null;
+                    updateStatus("Status: Waiting for AI response...");
+
+                    for await (const chunk of result.stream) {
+                        if (thinkingMessageContainer) { messagesArea.removeChild(thinkingMessageContainer); thinkingMessageContainer = null; }
+                        if (!firstChunkInIterationProcessed) { firstChunkReceivedInTurn = true; firstChunkInIterationProcessed = true; }
+
+                        const textPart = chunk.text();
+                        if (typeof textPart === 'string' && textPart.length > 0) {
+                            if (!currentAiMessageContainer) {
+                                const { container } = addMessage("", "ai", { isStreaming: true });
+                                finalAiContainer = container;
+                            }
+                            accumulatedTextInThisIteration += textPart; appendToCurrentAiMessage(textPart);
+                            updateStatus("Status: Receiving response...");
+                        }
+                        const calls = chunk.functionCalls();
+                        if (calls && calls.length > 0) {
+                            console.log("Function Call(s) detected:", calls); functionCallsInThisIteration.push(...calls);
+                            updateStatus("Status: AI requested tool use...");
+                        }
+                    } // End stream loop
+
+                    if (functionCallsInThisIteration.length > 0) {
+                        addToolCallMessage(`🛠️ AI requested Sefaria lookup...`);
+                        const functionResponses = [];
+                        const searchPromises = functionCallsInThisIteration.map(async (call) => {
+                            const functionName=call.name; const functionArgs=call.args;
+                            if(functionName!=='fetch_sefaria_text'||!functionArgs?.sefaria_ref){return {functionResponse:{name:functionName,response:{content:{error:"Malformed function call"}}}}}
+                            const sefariaRef=functionArgs.sefaria_ref; addToolCallMessage(`🔍 Searching Sefaria for: ${sefariaRef}...`);
+                            const searchResult=await executeSefariaSearch(sefariaRef);
+                            const payload=searchResult.error?{error:searchResult.error,reference:searchResult.reference}:{text_content:searchResult.text_content,reference:searchResult.reference};
+                            return {functionResponse:{name:functionName,response:{content:payload}}};
+                        });
+                        const resolvedResponses = await Promise.all(searchPromises);
+                        functionResponses.push(...resolvedResponses); messageToSend = functionResponses;
+                    } else {
+                        if (!firstChunkReceivedInTurn && thinkingMessageContainer) {
+                             messagesArea.removeChild(thinkingMessageContainer); console.warn("AI returned no text/calls.");
+                             const { container } = addMessage("(No response or error)", "ai"); finalAiContainer = container;
+                             updateStatus("Status: No response or error.");
+                        } else if (firstChunkReceivedInTurn) { console.log("AI finished generating."); updateStatus("Status: Generation complete."); }
+                        currentAiMessageContainer = null; currentAiMessageElement = null;
+                        break; // Exit main while loop
+                    }
+                } // End main interaction loop
+
+            } catch (error) {
+                console.error("Error during chat interaction:", error); updateStatus("Status: Error during generation. Check console.");
+                if (thinkingMessageContainer) messagesArea.removeChild(thinkingMessageContainer);
+                let errorMessage = `❌ Error: ${error.message||'Unknown error.'}`;
+                if(error.message?.includes('API key not valid'))errorMessage+=' Check API key.';
+                else if(error.response?.promptFeedback?.blockReason)errorMessage+=` Blocked: ${error.response.promptFeedback.blockReason}`;
+                else if(error.message?.includes('quota'))errorMessage+=' API quota likely exceeded.';
+                errorMessage+='\nCheck console for details.';
+                const { container } = addMessage(errorMessage.replace(/\n/g, '<br>'), "ai"); finalAiContainer = container;
+                currentAiMessageContainer = null; currentAiMessageElement = null;
+            } finally {
+                // --- Finalize AI Message and Add Button ---
+                if (finalAiContainer) {
+                    const messageId = finalAiContainer.dataset.messageId;
+                    finalAiContainer.dataset.originalPrompt = userPrompt;
+                    historyStore.set(messageId, historyForSnapshot);
+                    console.log(`Stored final history snapshot for message ${messageId}`);
+                    addRegenerateButton(finalAiContainer); // Add button after storing data
+                } else if (!thinkingMessageContainer) { console.warn("No final AI container created."); }
+
+                isGenerating = false; // Release the flag HERE in the finally block
+                sendButton.disabled = false;
+                promptInput.disabled = false;
+                document.querySelectorAll('.regenerate-button').forEach(btn => { // Re-enable all buttons
+                   if (btn.textContent.includes('Regenerating')) btn.innerHTML = `${regenerateIconSvg} Regenerate`;
+                   btn.disabled = false;
+                });
+
+                if (!isRegeneration) promptInput.focus();
+                scrollToBottom();
+            }
+        }
+
+         // Wrapper for the initial button click / Enter press
+         async function handleSendPrompt() { await processAndSendPrompt(); }
+
+        // --- Event Listeners ---
+        sendButton.addEventListener("click", handleSendPrompt);
+        promptInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) { event.preventDefault(); handleSendPrompt(); }
+            else if (event.key === "Enter" && event.ctrlKey) { event.preventDefault(); handleSendPrompt(); }
+        });
+        promptInput.addEventListener('input', autoGrowTextarea);
+        settingsToggle.addEventListener("click", () => {
+             sidebar.classList.toggle("open");
+             settingsToggle.style.transform = sidebar.classList.contains('open') ? `translateX(calc(-1 * var(--sidebar-width) - 15px))` : `translateX(0)`;
+        });
+        // Slider listeners (update UI only)
+        frumnessSlider.addEventListener("input", (e) => {
+            const levelIndex = Math.min(Math.floor(parseFloat(e.target.value) / 10), frumnessLabels.length - 1);
+            frumnessValue.textContent = frumnessLabels[levelIndex];
+            // Note: Frumness level is passed with the prompt in processAndSendPrompt
+        });
+        // Auto-scroll checkbox listener
+        disableScrollCheckbox.addEventListener('change', (e) => {
+             disableAutoScroll = e.target.checked; console.log("Auto-scroll disabled:", disableAutoScroll);
+             if (!disableAutoScroll) scrollToBottom(); // Scroll if re-enabled
+        });
+        // Slider listeners (update UI only)
+         temperatureSlider.addEventListener("input", (e) => { temperatureValue.textContent = parseFloat(e.target.value).toFixed(2); });
+         topPSlider.addEventListener("input", (e) => { topPValue.textContent = parseFloat(e.target.value).toFixed(3); });
+         topKSlider.addEventListener("input", (e) => { topKValue.textContent = parseInt(e.target.value, 10); });
+         // Safety checkbox listeners (do nothing for now)
+         document.querySelectorAll('.settings-group input[type="checkbox"][id^="safety-"]').forEach(cb => {
+             cb.addEventListener('change', (e) => { console.log(`Safety checkbox ${e.target.id} changed to ${e.target.checked} (no effect).`); });
          });
-         promptInput.addEventListener('input', autoGrowTextarea);
-         settingsToggle.addEventListener("click", () => {
-              sidebar.classList.toggle("open");
-              settingsToggle.style.transform = sidebar.classList.contains('open') ? `translateX(calc(-1 * var(--sidebar-width) - 15px))` : `translateX(0)`;
-         });
-         // Slider listeners (update UI only)
-         frumnessSlider.addEventListener("input", (e) => {
-             const levelIndex = Math.min(Math.floor(parseFloat(e.target.value) / 10), frumnessLabels.length - 1);
-             frumnessValue.textContent = frumnessLabels[levelIndex];
-             // Note: Frumness level is passed with the prompt in processAndSendPrompt
-         });
-         // Auto-scroll checkbox listener
-         disableScrollCheckbox.addEventListener('change', (e) => {
-              disableAutoScroll = e.target.checked; console.log("Auto-scroll disabled:", disableAutoScroll);
-              if (!disableAutoScroll) scrollToBottom(); // Scroll if re-enabled
-         });
-         // Slider listeners (update UI only)
-          temperatureSlider.addEventListener("input", (e) => { temperatureValue.textContent = parseFloat(e.target.value).toFixed(2); });
-          topPSlider.addEventListener("input", (e) => { topPValue.textContent = parseFloat(e.target.value).toFixed(3); });
-          topKSlider.addEventListener("input", (e) => { topKValue.textContent = parseInt(e.target.value, 10); });
-          // Safety checkbox listeners (do nothing for now)
-          document.querySelectorAll('.settings-group input[type="checkbox"][id^="safety-"]').forEach(cb => {
-              cb.addEventListener('change', (e) => { console.log(`Safety checkbox ${e.target.id} changed to ${e.target.checked} (no effect).`); });
-          });
-         
-         
-         // --- Initial Setup ---
-         autoGrowTextarea();
-         initializeGemini(); // Initialize Gemini on load
-         
-      </script>
-   </body>
+
+
+        // --- Initial Setup ---
+        autoGrowTextarea();
+        initializeGemini(); // Initialize Gemini on load
+
+    </script>
+
+</body>
 </html>
